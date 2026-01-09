@@ -1,0 +1,369 @@
+# Copyright AGNTCY Contributors (https://github.com/agntcy)
+# SPDX-License-Identifier: Apache-2.0
+
+---
+version: "3"
+
+silent: true
+set: [pipefail]
+shopt: [globstar]
+
+vars:
+  GLOBAL_ARGS: '{{.GLOBAL_ARGS | default ""}}'
+
+  PROFILE: '{{.PROFILE | default "debug"}}'
+  RELEASE:
+    sh: '[[ {{.PROFILE}} == "release" ]] && echo "--release" || echo ""'
+  CURRENT_TARGET:
+    sh: 'rustc -vV | sed -n "s|host: ||p"'
+  TARGET: "{{.TARGET | default .CURRENT_TARGET}}"
+  TARGET_ARGS:
+    sh: '[[ -z "{{.TARGET}}" ]] && echo '''' || echo ''--target {{.TARGET}}'''
+  TARGET_ARCH:
+    sh: "echo {{.TARGET}} | cut -d'-' -f1"
+
+  LLVM_VERSION: '{{ .LLVM_VERSION | default "19" }}'
+  OBJCOPY: 'llvm-objcopy-{{.LLVM_VERSION}}'
+
+tasks:
+  print-vars:
+    desc: "Print the variables"
+    cmds:
+      - |
+        echo "Variables:"
+        echo "  PROFILE: {{.PROFILE}}"
+        echo "  RELEASE: {{.RELEASE}}"
+        echo "  TARGET: {{.TARGET}}"
+        echo "  TARGET_ARGS: {{.TARGET_ARGS}}"
+        echo "  TARGET_ARCH: {{.TARGET_ARCH}}"
+        echo "  LLVM_VERSION: {{.LLVM_VERSION}}"
+        echo "  OBJCOPY: {{.OBJCOPY}}"
+        echo ""
+
+  fmt:
+    desc: "Format the code"
+    cmds:
+      - task: toolchain:fmt
+
+  fmt:check:
+    desc: "Check the code formatting"
+    cmds:
+      - task: toolchain:fmt
+        vars:
+          ARGS: "-- --check"
+
+  fetch:
+    desc: "Fetch the dependencies"
+    cmds:
+      - task: toolchain:fetch
+        vars:
+          ARGS: "--locked"
+
+  tools:fetch:
+    desc: "Fetch the dependencies"
+    cmds:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "{{.CARGO_COMPONENTS}}"
+
+  tools:hash:
+    desc: "Compute the SHA-256 hash of the CARGO_COMPONENTS string"
+    cmds:
+      - cmd: sh -c "echo -n '{{.CARGO_COMPONENTS}}' | sha256sum | cut -d ' ' -f1"
+
+  check:
+    desc: "Check the project"
+    cmds:
+      - task: toolchain:check
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked"
+
+  clean:
+    desc: "Clean the project"
+    cmds:
+      - task: toolchain:clean
+
+  clippy:
+    desc: "Run clippy"
+    cmds:
+      - task: toolchain:clippy
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+
+  sort:check:
+    desc: "Check the dependencies are sorted"
+    cmds:
+      - task: toolchain:sort
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --check"
+
+  unused:check:
+    desc: "Check for unused dependencies"
+    cmds:
+      - task: toolchain:unused
+
+  licenses:
+    desc: "Check for licenses"
+    cmds:
+      - task: toolchain:licenses
+
+  typos:
+    desc: "Check for typos"
+    cmds:
+      - task: toolchain:typos
+
+  sort:
+    desc: "Check the dependencies are sorted"
+    cmds:
+      - task: toolchain:sort
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}}"
+
+  doc:
+    desc: "Generate the documentation"
+    cmds:
+      - task: toolchain:doc
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --no-deps --locked --all-features"
+
+  lintall:
+    desc: "Run the linter"
+    cmds:
+      - task: fmt:check
+      - task: clippy
+      - task: vuln
+      - task: sort:check
+      - task: unused:check
+      - task: licenses
+      - task: typos
+
+  test:build:
+    desc: "Build the tests"
+    cmds:
+      - task: toolchain:test:build
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+
+  test:
+    desc: "Run the tests"
+    cmds:
+      - task: toolchain:test
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+
+  test:coverage:
+    desc: "Run tests coverage"
+    cmds:
+      - task: toolchain:test:coverage
+        vars:
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+
+  build:
+    desc: "Build the project"
+    cmds:
+      - task: toolchain:build
+        vars:
+          ARGS: '{{ .BUILD_ARGS | default "--all-targets --locked --all-features" }}'
+
+  vuln:
+    desc: "Check for vulnerabilities"
+    cmds:
+      - task: toolchain:vuln
+
+  toolchain:build:install-target:
+    desc: "Install the target"
+    internal: true
+    cmds:
+      - rustup target add {{.TARGET}}
+
+  toolchain:build:install-cargo-components:
+    desc: "Install the components"
+    internal: true
+    cmds:
+      - cargo install {{.COMPONENTS}}
+    vars:
+      COMPONENTS: '{{ .COMPONENTS | default "" }}'
+
+  toolchain:clean:
+    desc: "Clean the project"
+    internal: true
+    cmds:
+      - cargo clean {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:fetch:
+    desc: "Fetch the dependencies"
+    internal: true
+    deps:
+      - task: toolchain:build:install-target
+    cmds:
+      - cargo fetch {{.TARGET_ARGS}} {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:build:
+    desc: "Build the project"
+    internal: true
+    deps:
+      - task: toolchain:build:install-target
+    cmds:
+      - pwd
+      - cargo build {{.RELEASE}} {{.TARGET_ARGS}} {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:check:
+    desc: "Check the project"
+    internal: true
+    deps:
+      - task: toolchain:build:install-target
+    cmds:
+      - cargo check {{.RELEASE}} {{.TARGET_ARGS}} {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:clippy:
+    desc: "Run clippy"
+    internal: true
+    deps:
+      - task: toolchain:build:install-target
+    cmds:
+      - cargo clippy {{.RELEASE}} {{.TARGET_ARGS}} {{.ARGS}} -- -D warnings
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:sort:
+    desc: "Install cargo-sort to sort dependencies"
+    internal: true
+    deps:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "cargo-sort"
+    cmds:
+      - cargo sort {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:unused:
+    desc: "Install cargo-machete and check for unused dependencies"
+    internal: true
+    deps:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "cargo-machete"
+    cmds:
+      - cargo machete {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:vuln:
+    desc: "Check for vulnerabilities"
+    internal: true
+    deps:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "cargo-audit"
+    cmds:
+      - cargo audit {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:licenses:
+    desc: "Check for licenses"
+    internal: true
+    deps:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "cargo-deny"
+    cmds:
+      - cargo deny check {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:fmt:
+    desc: "Format the code"
+    internal: true
+    cmds:
+      - cargo fmt {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:typos:
+    desc: "Check for typos"
+    internal: true
+    deps:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "typos-cli"
+    cmds:
+      - typos
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:doc:
+    desc: "Generate the documentation"
+    internal: true
+    cmds:
+      - cargo doc {{.RELEASE}} {{.TARGET_ARGS}}
+
+  toolchain:test:build:
+    desc: "Build the tests"
+    internal: true
+    deps:
+      - task: toolchain:build:install-target
+    cmds:
+      - cargo test --no-run {{.RELEASE}} {{.TARGET_ARGS}} {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:test:coverage:
+    desc: "Run the tests"
+    internal: true
+    deps:
+      - task: toolchain:build:install-cargo-components
+        vars:
+          COMPONENTS: "cargo-llvm-cov"
+    cmds:
+      - cargo llvm-cov --lcov --output-path lcov.info {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:test:
+    desc: "Run the tests"
+    internal: true
+    cmds:
+      - cargo test {{.RELEASE}} {{.TARGET_ARGS}} {{.ARGS}}
+    vars:
+      ARGS: '{{ .ARGS | default "" }}'
+
+  toolchain:strip:
+    desc: "Strip the binary"
+    internal: true
+    cmds:
+      - "{{.OBJCOPY}} --only-keep-debug {{.TARGET_BIN}} {{.TARGET_BIN}}.dbg"
+      - "{{.OBJCOPY}} --strip-unneeded {{.TARGET_BIN}}"
+      - "{{.OBJCOPY}} --add-gnu-debuglink={{.TARGET_BIN}} {{.TARGET_BIN}}.dbg"
+    vars:
+      TARGET_BIN: '{{.TARGET_BIN | default ""}}'
+
+  toolchain:run:
+    desc: "Run a binary"
+    internal: true
+    cmds:
+      - "cargo run {{.RELEASE}} --bin {{.BIN}} {{.ARGS}} -- {{.BIN_ARGS}}"
+    vars:
+      BIN: '{{.BIN | default "slim"}}'
+      ARGS: '{{ .ARGS | default "" }}'
+      BIN_ARGS: '{{ .BIN_ARGS | default "" }}'
+
+  toolchain:run-command:
+    desc: "Run a command"
+    internal: true
+    dir: '{{.DIR | default ""}}'
+    deps:
+      - task: toolchain:build:install-target
+    cmds:
+      - "{{.COMMAND}}"
+    vars:
+      COMMAND: '{{.COMMAND | default ""}}'
