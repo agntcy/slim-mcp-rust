@@ -1,0 +1,13 @@
+type-complexity-threshold = 500
+
+disallowed-methods = [
+    # Unsafe
+    "std::env::set_var",
+    "std::env::remove_var",
+]
+
+disallowed-types = [
+    # parking_lot
+    "std::sync::Mutex",
+    "std::sync::RwLock",
+]

@@ -1,0 +1,31 @@
+# Copyright AGNTCY Contributors (https://github.com/agntcy)
+# SPDX-License-Identifier: Apache-2.0
+
+version: "3"
+
+silent: true
+set: [pipefail]
+shopt: [globstar]
+
+includes:
+  rust:
+    taskfile: tasks/rust.yaml
+    flatten: true
+    vars:
+      GLOBAL_ARGS: "--workspace"
+
+  mcp-proxy:
+    taskfile: mcp-proxy/Taskfile.yaml
+
+vars:
+  CARGO_COMPONENTS: "cargo-sort cargo-audit cargo-llvm-cov cargo-machete cargo-deny typos-cli"
+
+tasks:
+  default:
+    cmds:
+      - task -l
+
+  lint:
+    desc: "Run all linters"
+    cmds:
+      - task lintall

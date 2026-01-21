@@ -1,0 +1,10 @@
+[workspace]
+members = ["mcp-proxy"]
+
+default-members = ["mcp-proxy"]
+
+resolver = "2"
+
+[workspace.package]
+license = "Apache-2.0"
+edition = "2024"
