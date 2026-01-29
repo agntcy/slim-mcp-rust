@@ -218,16 +218,15 @@ impl Proxy {
 
     pub async fn start(
         &mut self,
-        mut service: slim_service::Service,
+        service: slim_service::Service,
+        secret: &str,
         _drain_timeout: std::time::Duration,
     ) {
-        const SECRET: &str = "tUDNjNmc4s6om6yziR4nmBVKKTFCXhfJEiP";
-
         let (app, mut slim_rx) = service
             .create_app(
                 &self.name,
-                SharedSecret::new("id", SECRET).expect("Failed to create SharedSecret"),
-                SharedSecret::new("id", SECRET).expect("Failed to create SharedSecret"),
+                SharedSecret::new("proxy", secret).expect("Failed to create SharedSecret"),
+                SharedSecret::new("proxy", secret).expect("Failed to create SharedSecret"),
             )
             .expect("failed to create app");
 

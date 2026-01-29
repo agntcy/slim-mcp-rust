@@ -19,13 +19,13 @@ name = "slim-mcp-proxy"
 path = "src/main.rs"
 
 [dependencies]
-agntcy-slim = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" }
-agntcy-slim-auth = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" }
-agntcy-slim-config = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" }
-agntcy-slim-datapath = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" } 
-agntcy-slim-service = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" } 
-agntcy-slim-session = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" } 
-agntcy-slim-signal = { git = "https://github.com/agntcy/slim.git", rev = "1a935e1a3a7688414a1ebd8ad939abc8f203ac22" } 
+agntcy-slim = { git = "https://github.com/agntcy/slim.git", branch = "main" }
+agntcy-slim-auth = { git = "https://github.com/agntcy/slim.git", branch = "main" }
+agntcy-slim-config = { git = "https://github.com/agntcy/slim.git", branch = "main" }
+agntcy-slim-datapath = { git = "https://github.com/agntcy/slim.git", branch = "main" } 
+agntcy-slim-service = { git = "https://github.com/agntcy/slim.git", branch = "main" } 
+agntcy-slim-session = { git = "https://github.com/agntcy/slim.git", branch = "main" } 
+agntcy-slim-signal = { git = "https://github.com/agntcy/slim.git", branch = "main" } 
 async-trait = "0.1"
 clap = "4.5.37"
 futures-util = "0.3.31"

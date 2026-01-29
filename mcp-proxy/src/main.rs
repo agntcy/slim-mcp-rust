@@ -17,7 +17,7 @@ pub struct Args {
     config: String,
 
     /// Service name to look for in the configuration file
-    #[arg(short, long, value_name = "svc_name", required = true)]
+    #[arg(long, value_name = "svc_name", required = true)]
     svc_name: String,
 
     /// MCP Proxy name in the form org/ns/type
@@ -31,6 +31,10 @@ pub struct Args {
     /// MCP Server address (e.g http://localhost:8000/sse)
     #[arg(short, long, value_name = "address", required = true)]
     mcp_server: String,
+
+    /// MCP Proxy shared secret
+    #[arg(short = 's', long, value_name = "secret", required = false)]
+    secret: Option<String>,
 }
 
 impl Args {
@@ -53,6 +57,10 @@ impl Args {
     pub fn mcp_server(&self) -> &String {
         &self.mcp_server
     }
+
+    pub fn secret(&self) -> Option<&String> {
+        self.secret.as_ref()
+    }
 }
 
 #[tokio::main]
@@ -65,6 +73,7 @@ async fn main() {
     let name = args.name();
     let _id = args.id();
     let server = args.mcp_server();
+    let secret = args.secret();
 
     let v_name: Vec<&str> = name.split('/').collect();
     if v_name.len() != 3 {
@@ -72,12 +81,15 @@ async fn main() {
         return;
     }
 
+    let default_secret = "secretsecretsecretsecretsecretsecret".to_string();
+    let secret = secret.unwrap_or(&default_secret);
+
     let mut config = config::ConfigLoader::new(config_file).expect("failed to load configuration");
     let svc_id = slim_config::component::id::ID::new_with_str(svc_name).unwrap();
     let _guard = config.tracing().setup_tracing_subscriber();
 
     let services = config.services().expect("error loading services");
-    let service = services.remove(&svc_id).expect("service not found");
+    let service = services.shift_remove(&svc_id).expect("service not found");
 
     let mut proxy = proxy::Proxy::new(
         Name::from_strings([v_name[0], v_name[1], v_name[2]]),
@@ -85,5 +97,5 @@ async fn main() {
     );
 
     info!("starting MCP proxy");
-    proxy.start(service, Duration::from_secs(10)).await;
+    proxy.start(service, secret, Duration::from_secs(10)).await;
 }

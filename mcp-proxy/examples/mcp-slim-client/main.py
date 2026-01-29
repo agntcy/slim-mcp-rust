@@ -43,7 +43,15 @@ async def main():
     }
 
     async with (
-        SLIMClient(config, org, ns, "client1", org, ns, mcp_server) as slim_client,
+        SLIMClient(
+            [config],
+            org,
+            ns,
+            "client1",
+            org,
+            ns,
+            mcp_server
+        ) as slim_client,
     ):
         async with slim_client.to_mcp_session(logging_callback=logging_callback_fn) as mcp_session:
             logger.info("initialize session")
