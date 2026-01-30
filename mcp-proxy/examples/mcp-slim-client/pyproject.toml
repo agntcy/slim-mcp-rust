@@ -9,7 +9,7 @@ dependencies = [
     "mcp==1.6.0",
     "anyio>=4.5",
     # refer to a commit
-    "slim-mcp @ git+https://github.com/agntcy/slim-mcp-python.git@3e5fb13a4a53e639ea9e1cec19905bb34dfa485d"
+    "slim-mcp @ git+https://github.com/agntcy/slim-mcp-python.git@3e5fb13a4a53e639ea9e1cec19905bb34dfa485d",
     # refer to a tag
     # For tag: "slim-mcp @ git+https://github.com/agntcy/slim-mcp-python.git@v0.1.8"
 ]

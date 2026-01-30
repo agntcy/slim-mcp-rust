@@ -57,7 +57,7 @@ tasks:
     cmds:
       - task: toolchain:fetch
         vars:
-          ARGS: "--locked"
+          ARGS: ""
 
   tools:fetch:
     desc: "Fetch the dependencies"
@@ -76,7 +76,7 @@ tasks:
     cmds:
       - task: toolchain:check
         vars:
-          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked"
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets"
 
   clean:
     desc: "Clean the project"
@@ -88,7 +88,7 @@ tasks:
     cmds:
       - task: toolchain:clippy
         vars:
-          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --all-features"
 
   sort:check:
     desc: "Check the dependencies are sorted"
@@ -124,7 +124,7 @@ tasks:
     cmds:
       - task: toolchain:doc
         vars:
-          ARGS: "{{.GLOBAL_ARGS}} --no-deps --locked --all-features"
+          ARGS: "{{.GLOBAL_ARGS}} --no-deps --all-features"
 
   lintall:
     desc: "Run the linter"
@@ -142,28 +142,28 @@ tasks:
     cmds:
       - task: toolchain:test:build
         vars:
-          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --all-features"
 
   test:
     desc: "Run the tests"
     cmds:
       - task: toolchain:test
         vars:
-          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --all-features"
 
   test:coverage:
     desc: "Run tests coverage"
     cmds:
       - task: toolchain:test:coverage
         vars:
-          ARGS: "{{.GLOBAL_ARGS}} --all-targets --locked --all-features"
+          ARGS: "{{.GLOBAL_ARGS}} --all-targets --all-features"
 
   build:
     desc: "Build the project"
     cmds:
       - task: toolchain:build
         vars:
-          ARGS: '{{ .BUILD_ARGS | default "--all-targets --locked --all-features" }}'
+          ARGS: '{{ .BUILD_ARGS | default "--all-targets --all-features" }}'
 
   vuln:
     desc: "Check for vulnerabilities"
