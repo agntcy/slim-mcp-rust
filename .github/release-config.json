@@ -1,0 +1,10 @@
+{
+  "packages": {
+    "mcp-proxy": {
+      "component": "mcp-proxy",
+      "release-type": "rust",
+      "package-name": "slim-mcp-proxy",
+      "changelog-path": "mcp-proxy/CHANGELOG.md"
+    }
+  }
+}
