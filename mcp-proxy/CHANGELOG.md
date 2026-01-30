@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.0...slim-mcp-proxy-v0.2.1) - 2026-01-30
+
+### Added
+
+- Migrate SLIM Rust MCP integrations to their own repo ([#1](https://github.com/agntcy/slim-mcp-rust/pull/1))
+
+### Fixed
+
+- remove locked flag ([#8](https://github.com/agntcy/slim-mcp-rust/pull/8))
+- fix test applications and task file ([#4](https://github.com/agntcy/slim-mcp-rust/pull/4))
+
 ## [0.2.0](https://github.com/agntcy/slim/compare/slim-mcp-proxy-v0.1.7...slim-mcp-proxy-v0.2.0) - 2025-10-09
 
 ### Added
