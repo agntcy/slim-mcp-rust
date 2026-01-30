@@ -6,10 +6,11 @@ import datetime
 import logging
 import time
 
+import slim_bindings
 from mcp import ClientSession, types
 from mcp.types import AnyUrl
 
-from slim_mcp import SLIMClient
+from slim_mcp import create_local_app, create_client_streams
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -34,18 +35,19 @@ async def main():
     ns = "mcp"
     mcp_server = "proxy"
 
-    # create mcp server with SLIM transport
-    config = {
-        "endpoint": "http://127.0.0.1:46357",
-        "tls": {
-            "insecure": True,
-        },
-    }
+    # Create SLIM client app with upstream connection
+    client_name = slim_bindings.Name(org, ns, "client1")
+    config = slim_bindings.new_insecure_client_config("http://127.0.0.1:46357")
+    client_app, connection_id = await create_local_app(client_name, config)
 
-    async with (
-        SLIMClient(config, org, ns, "client1", org, ns, mcp_server) as slim_client,
-    ):
-        async with slim_client.to_mcp_session(logging_callback=logging_callback_fn) as mcp_session:
+    # Set route to destination through upstream connection
+    destination = slim_bindings.Name(org, ns, mcp_server)
+    if connection_id is not None:
+        await client_app.set_route_async(destination, connection_id)
+
+    # Connect to server using MCP client streams
+    async with create_client_streams(client_app, destination) as (read, write):
+        async with ClientSession(read, write, logging_callback=logging_callback_fn) as mcp_session:
             logger.info("initialize session")
             await mcp_session.initialize()
 
@@ -74,10 +76,10 @@ async def main():
             await mcp_session.subscribe_resource(AnyUrl("file:///greeting.txt"))
 
             time.sleep(1)
-            if subscription == False:
+            if not subscription:
                 logger.error("Failed to subscribe for the resource")
                 return
-            logger.info("Successfully processed subscription")
+            logger.info("Successfully subscribed to resource")
 
             # read a specific resource
             resource = await mcp_session.read_resource(AnyUrl("file:///greeting.txt"))
@@ -90,10 +92,10 @@ async def main():
             await mcp_session.unsubscribe_resource(AnyUrl("file:///greeting.txt"))
 
             time.sleep(1)
-            if unsubscription == False:
+            if not unsubscription:
                 logger.error("Failed to unsubscribe for the resource")
                 return
-            logger.info("Successfully processed unsubscription")
+            logger.info("Successfully unsubscribed from resource")
 
             # List available prompts
             prompts = await mcp_session.list_prompts()

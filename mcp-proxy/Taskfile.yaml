@@ -22,8 +22,12 @@ tasks:
 
   run-mcp-proxy:
     desc: run mcp proxy
+    dir: '{{.TASKFILE_DIR}}'
     cmds:
-      - cargo run -- --config config/mcp-proxy-config.yaml --svc-name slim/0 --name org/mcp/proxy --mcp-server http://localhost:8000/sse
+      - |
+        cargo run -- --config config/mcp-proxy-config.yaml \
+          --svc-name slim/0 --name org/mcp/proxy \
+          --mcp-server http://localhost:8000/sse
 
   test:run-mcp-client:
     desc: run a simple MCP client that use SLIM as transport protocol
@@ -38,37 +42,6 @@ tasks:
       - |
         cd examples/mcp-slim-client
         uv run --reinstall main.py
-
-  run-slim:
-    desc: run an SLIM node
-    cmds:
-      - |
-        cd ../../../
-        cargo run --bin slim -- --config config/base/server-config.yaml
-
-  example:run-mcp-server-time-sse:
-    desc: run mcp server time using SSE transport using New York time
-    cmds:
-      - |
-        uvx --from slim-mcp mcp-server-time --local-timezone "America/New_York" --transport sse
-
-  example:run-mcp-server-time-slim:
-    desc: run mcp server time using SSE transport using New York time
-    cmds:
-      - |
-        uvx --from slim-mcp mcp-server-time --local-timezone "America/New_York" --transport slim
-
-  example:run-llamaindex-time-agent-proxy:
-    desc: run llama index time agent
-    cmds:
-      - |
-        uvx --from slim-mcp llamaindex-time-agent --city "New York" --mcp-server-organization "org" --mcp-server-namespace "mcp" --mcp-server-name "proxy"
-
-  example:run-llamaindex-time-agent:
-    desc: run llama index time agent
-    cmds:
-      - |
-        uvx --from slim-mcp llamaindex-time-agent --city "New York"
 
   build:strip:
     desc: "Build the project and strip the debug symbols"
