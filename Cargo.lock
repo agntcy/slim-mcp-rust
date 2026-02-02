@@ -5,7 +5,8 @@ version = 4
 [[package]]
 name = "agntcy-slim"
 version = "1.0.0"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "086faa20466f9226bfeca75bbc90e6cc698a3cac30632eb390c4dd00dfa4fb9b"
 dependencies = [
  "agntcy-slim-config",
  "agntcy-slim-service",
@@ -29,7 +30,8 @@ dependencies = [
 [[package]]
 name = "agntcy-slim-auth"
 version = "0.5.0"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c6b5f61ae1a2b502d829c4632ea18dd8483ae9a41f935b33a8b05472d353eb3"
 dependencies = [
  "async-trait",
  "aws-lc-rs",
@@ -63,8 +65,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-config"
-version = "0.5.0"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09c414f4045d96266d10ca9a3cd3a2a569b714860479e4f46b7b16fc391c5781"
 dependencies = [
  "agntcy-slim-auth",
  "async-trait",
@@ -107,8 +110,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-controller"
-version = "0.4.4"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.4.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e787042f59a815ed92a27e7815d1f77af0b344c931481c4c4b37cf2824db74c8"
 dependencies = [
  "agntcy-slim-auth",
  "agntcy-slim-config",
@@ -139,8 +143,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-datapath"
-version = "0.11.0"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5ea496df23dbb8244e60cae51f062135fd9d7e7964bb2ad1293b6f1cc2216fd"
 dependencies = [
  "agntcy-slim-config",
  "agntcy-slim-tracing",
@@ -191,8 +196,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-mls"
-version = "0.1.6"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eaf805e2edb0087d9904eebf722846b89e685ad53108c44b19bfd2ceb110dd58"
 dependencies = [
  "agntcy-slim-auth",
  "agntcy-slim-datapath",
@@ -211,8 +217,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-service"
-version = "0.8.3"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.8.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73a556303196767f23a58c1f0acbd0b947667a91ed99c16869d08c0234ee6f20"
 dependencies = [
  "agntcy-slim-auth",
  "agntcy-slim-config",
@@ -234,8 +241,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-session"
-version = "0.1.3"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4df59cf6dcc7d8adb2077d27548cf717bdd9be395e7de6b10a19eee95491868f"
 dependencies = [
  "agntcy-slim-auth",
  "agntcy-slim-datapath",
@@ -255,7 +263,8 @@ dependencies = [
 [[package]]
 name = "agntcy-slim-signal"
 version = "0.1.4"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efcc902c27855a283b2618156da28f575c562612e1a6528d9e412230129cfd4b"
 dependencies = [
  "tokio",
  "tracing",
@@ -263,8 +272,9 @@ dependencies = [
 
 [[package]]
 name = "agntcy-slim-tracing"
-version = "0.3.0"
-source = "git+https://github.com/agntcy/slim.git?branch=main#1ca2ef4f85a45c09a0691a0e9098d96f5e809262"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2639be83ca763688adaf60f6a2623e8f687e2a32d65253f80302eca45de1908"
 dependencies = [
  "agntcy-slim-config",
  "once_cell",
