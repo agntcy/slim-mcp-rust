@@ -48,6 +48,4 @@ skip = []
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = [
-    "https://github.com/agntcy/slim.git",
-]
+allow-git = []
