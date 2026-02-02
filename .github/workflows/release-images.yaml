@@ -7,7 +7,7 @@ name: ci-release-images
 on:
   push:
     tags:
-      - 'mcp-proxy-*'
+      - 'slim-mcp-proxy-*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -30,10 +30,10 @@ jobs:
         id: resolve
         run: |
           # This assumes tags are in this form:
-          # mcp-proxy-<component1>-<component2>-v<version>
+          # slim-mcp-proxy-<component1>-<component2>-v<version>
 
-          # strip mcp-proxy- prefix from the tag
-          _target=${GITHUB_REF_NAME#mcp-proxy}
+          # strip slim-mcp-proxy- prefix from the tag
+          _target=${GITHUB_REF_NAME#slim-mcp-proxy}
 
           # remove version to only get the component
           target=${_target%-v*}
