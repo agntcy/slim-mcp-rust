@@ -3,12 +3,11 @@
 
 use rmcp::model::ClientResult::EmptyResult;
 use rmcp::{
-    RoleClient,
     model::{
         ClientNotification, ClientRequest, ClientResult, JsonRpcMessage, JsonRpcRequest,
         PingRequest, PingRequestMethod, ServerJsonRpcMessage,
     },
-    transport::{IntoTransport, SseTransport, sse::SseTransportError},
+    transport::{StreamableHttpClientTransport, Transport},
 };
 
 use slim_auth::shared_secret::SharedSecret;
@@ -19,7 +18,6 @@ use slim_session::{
     timer::{Timer, TimerObserver, TimerType},
 };
 
-use futures_util::{StreamExt, sink::SinkExt};
 use rmcp::model::NumberOrString::Number;
 use std::{
     collections::{HashMap, HashSet},
@@ -82,21 +80,14 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
         let mut incoming_conn_id: Option<u64> = None;
 
         // Connect to MCP server
-        let transport = match SseTransport::start(mcp_server).await {
-            Ok(t) => t,
-            Err(e) => {
-                error!("error connecting to the MCP server: {}", e.to_string());
-                return;
-            }
-        };
-        let (mut sink, mut stream) = <SseTransport as IntoTransport<RoleClient, SseTransportError, ()>>::into_transport(transport);
+        let mut transport = StreamableHttpClientTransport::from_uri(mcp_server);
 
         // Ping timer setup
         let (tx_timer, mut rx_timer) = mpsc::channel(128);
         let ping_timer_observer = Arc::new(PingTimerObserver { tx_proxy_session: tx_timer });
         let mut ping_timer = Timer::new(1, TimerType::Constant, Duration::from_secs(PING_INTERVAL), None, None);
         ping_timer.start(ping_timer_observer);
-        let mut pending_pings: HashSet<u32> = HashSet::new();
+        let mut pending_pings: HashSet<i64> = HashSet::new();
 
         loop {
             tokio::select! {
@@ -105,7 +96,7 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                         None => {
                             debug!("session channel closed");
                             ping_timer.stop();
-                            let _ = sink.close().await;
+                            let _ = transport.close().await;
                             break;
                         }
                         Some(Ok(message)) => {
@@ -131,41 +122,42 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                                                         pending_pings.clear();
                                                     } else {
                                                         debug!("forward response to MCP server {:?}", json_rpc_response);
-                                                        if sink.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
+                                                        if transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
                                                     }
                                                 }
                                                 _ => {
                                                     debug!("forward response to MCP server {:?}", json_rpc_response);
-                                                    if sink.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
+                                                    if transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
                                                 }
                                             }
                                         }
                                         _ => {
                                             debug!("forward response to MCP server {:?}", json_rpc_response);
-                                            if sink.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
+                                            if transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
                                         }
                                     }
                                 }
                                 _ => {
                                     debug!("forward message to MCP server {:?}", jsonrpcmsg);
-                                    if sink.send(jsonrpcmsg).await.is_err() { error!("failed forwarding message to MCP server"); }
+
+                                    if transport.send(jsonrpcmsg).await.is_err() { error!("failed forwarding message to MCP server"); }
                                 }
                             }
                         }
                         Some(Err(e)) => {
                             error!("error receiving session message: {:?}", e);
                             ping_timer.stop();
-                            let _ = sink.close().await;
+                            let _ = transport.close().await;
                             break;
                         }
                     }
                 }
-                next_from_mcp = stream.next() => {
+                next_from_mcp = transport.receive() => {
                     match next_from_mcp {
                         None => {
                             info!("end of MCP stream");
                             ping_timer.stop();
-                            let _ = sink.close().await;
+                            let _ = transport.close().await;
                             break;
                         }
                         Some(msg) => {
@@ -187,12 +179,12 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                             if pending_pings.len() >= MAX_PENDING_PINGS {
                                 debug!("client not replying to pings, closing");
                                 ping_timer.stop();
-                                let _ = sink.close().await;
+                                let _ = transport.close().await;
                                 break;
                             }
                             if let Some(conn) = incoming_conn_id && let Some(session_arc) = weak.upgrade() {
-                                let ping_req = PingRequest { method: PingRequestMethod };
-                                let index = rand::random::<u32>();
+                                let ping_req = PingRequest { method: PingRequestMethod, extensions: Default::default()  };
+                                let index = rand::random::<i64>();
                                 pending_pings.insert(index);
                                 let req = ServerJsonRpcMessage::Request(JsonRpcRequest { jsonrpc: rmcp::model::JsonRpcVersion2_0, id: Number(index), request: rmcp::model::ServerRequest::PingRequest(ping_req) });
                                 let vec = serde_json::to_vec(&req).unwrap();
@@ -263,6 +255,7 @@ impl Proxy {
                                     let source_name = session.source().clone();
                                     let session_key = SessionId { source: source_name, id: session_id_val };
                                     self.connections.insert(session_key, ());
+                                    debug!("mcp_server {}", self.mcp_server);
                                     start_proxy_session(ctx, self.mcp_server.clone());
                                 }
                                 Ok(Notification::NewMessage(msg)) => {
