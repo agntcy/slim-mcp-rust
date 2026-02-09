@@ -186,13 +186,9 @@ dependencies = [
  "agntcy-slim-signal",
  "async-trait",
  "clap",
- "futures",
- "futures-util",
  "rand 0.9.2",
- "reqwest",
  "rmcp",
  "serde_json",
- "sse-stream",
  "tokio",
  "tracing",
 ]

@@ -30,18 +30,11 @@ agntcy-slim-session = "0.1.4"
 agntcy-slim-signal = "0.1.4"
 async-trait = "0.1"
 clap = "4.5.37"
-futures = "0.3.31"
-futures-util = "0.3.31"
 rand = "0.9.1"
-reqwest = { version = "0.12", default-features = false, features = [
-    "json",
-    "stream",
-] }
 rmcp = { version = "0.14.0", features = [
     "client",
     "transport-streamable-http-client-reqwest",
 ] }
 serde_json = "1.0"
-sse-stream = "0.2.1"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.41"
