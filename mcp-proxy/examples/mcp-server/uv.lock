@@ -281,7 +281,7 @@ dependencies = [
 requires-dist = [
     { name = "click", specifier = ">=8.2.0" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "mcp", specifier = ">=1.26.0" },
+    { name = "mcp", specifier = "==1.26.0" },
 ]
 
 [[package]]
