@@ -17,7 +17,7 @@ tasks:
     cmds:
       - |
         cd examples/config/
-        docker run -it -v ./slim-server-config.yaml:/config.yaml -p 46357:46357 ghcr.io/agntcy/slim:1.0.0 /slim --config /config.yaml
+        docker run -it -v ./slim-server-config.yaml:/config.yaml -p 46357:46357 ghcr.io/agntcy/slim:1.0.2 /slim --config /config.yaml
 
   mcp-proxy:test:run-mcp-server:
     desc: run mcp server using SSE transport
