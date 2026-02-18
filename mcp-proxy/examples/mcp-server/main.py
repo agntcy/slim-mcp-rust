@@ -77,13 +77,7 @@ logger = logging.getLogger(__name__)
     default="debug",
     help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
 )
-@click.option(
-    "--json-response",
-    is_flag=True,
-    default=False,
-    help="Enable JSON responses instead of SSE streams",
-)
-def main(port: int, log_level: str, json_response: bool,) -> int:
+def main(port: int, log_level: str,) -> int:
     logging.basicConfig(
         level=getattr(logging, log_level.upper()),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -200,7 +194,7 @@ def main(port: int, log_level: str, json_response: bool,) -> int:
     session_manager = StreamableHTTPSessionManager(
         app=app,
         event_store=None,  # Enable resumability
-        json_response=json_response,
+        json_response=False,
         stateless=True,
     )
 
