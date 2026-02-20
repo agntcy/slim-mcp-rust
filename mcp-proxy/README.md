@@ -7,12 +7,12 @@ You can use the commands provided in the Taskfile to run the client and server l
 ### Run the SLIM node
 To run the SLIM node, use the following command:
 ```bash
-task mcp-proxy:run-slim
+task mcp-proxy:test:run-slim
 ```
 ### Run the SLIM-MCP proxy
 To run the SLIM-MCP proxy, use the following command:
 ```bash
-task mcp-proxy:run-mcp-proxy
+task mcp-proxy:run
 ```
 ### Run the MCP Server
 To run the MCP server example, use the following command:
