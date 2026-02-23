@@ -1,19 +1,21 @@
 # Copyright AGNTCY Contributors (https://github.com/agntcy)
 # SPDX-License-Identifier: Apache-2.0
 
-import anyio
 import click
 import httpx
-import mcp.types as types
-from mcp.server.lowlevel import Server
-from pydantic import FileUrl
-
-from mcp.server.sse import SseServerTransport
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import Response
-from starlette.routing import Mount, Route
 import uvicorn
+import contextlib
+import logging
+from collections.abc import AsyncIterator
+
+from pydantic import FileUrl
+from mcp import types
+from mcp.server.lowlevel import Server
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
+from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
+from starlette.types import Receive, Scope, Send
+from starlette.routing import Mount
 
 SAMPLE_RESOURCES = {
     "greeting": "Hello! This is a sample text resource.",
@@ -64,10 +66,22 @@ def create_messages(
 
     return messages
 
-@click.command()
-@click.option("--port", default=8000, help="Port to listen on for SSE")
 
-def main(port: int):
+# Configure logging
+logger = logging.getLogger(__name__)
+
+@click.command()
+@click.option("--port", default=8000, help="Port to listen on for HTTP")
+@click.option(
+    "--log-level",
+    default="debug",
+    help="Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)",
+)
+def main(port: int, log_level: str,) -> int:
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
     app = Server("mcp-server")
 
     # Tools
@@ -121,19 +135,20 @@ def main(port: int):
             raise ValueError(f"Unknown resource: {uri}")
 
         # send a log notification for the resource read
-        await app.request_context.session.send_log_message("info", "read_resource", f"client read resource {uri}")
+        await app.request_context.session.send_log_message(level="info", data=f"client read resource {uri}", logger="read_resource_stream" , related_request_id=app.request_context.request_id)
 
         return SAMPLE_RESOURCES[name]
 
     @app.subscribe_resource()
     async def subscribe_resources(uri: FileUrl):
         # send a log notification for the subscription
-        await app.request_context.session.send_log_message("info", "subscribe_resource", f"client sent a subscription for resource {uri}")
+        await app.request_context.session.send_log_message(level="info", data="subscribe_resource", logger="subscribe_resource_stream" , related_request_id=app.request_context.request_id)
+
 
     @app.unsubscribe_resource()
     async def unsubscribe_resources(uri: FileUrl):
         # send a log notification for the usubscription
-        await app.request_context.session.send_log_message("info", "unsubscribe_resource", f"client sent an unsubscription resource {uri}")
+        await app.request_context.session.send_log_message(level="info", data="unsubscribe_resource", logger="unsubscribe_resource_stream" , related_request_id=app.request_context.request_id)
 
     # Prompt
     @app.list_prompts()
@@ -175,27 +190,49 @@ def main(port: int):
             description="A simple prompt with optional context and topic arguments",
         )
 
-    # setup server
-    sse = SseServerTransport("/messages/")
+    # Create the session manager with our app and event store
+    session_manager = StreamableHTTPSessionManager(
+        app=app,
+        event_store=None,  # Enable resumability
+        json_response=False,
+        stateless=True,
+    )
 
-    async def handle_sse(request):
-        async with sse.connect_sse(
-            request.scope, request.receive, request._send
-        ) as streams:
-            await app.run(
-                streams[0], streams[1], app.create_initialization_options()
-            )
-        return Response()
+    # ASGI handler for streamable HTTP connections
+    async def handle_streamable_http(scope: Scope, receive: Receive, send: Send) -> None:
+        await session_manager.handle_request(scope, receive, send)
 
+    @contextlib.asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        """Context manager for managing session manager lifecycle."""
+        async with session_manager.run():
+            logger.info("Application started with StreamableHTTP session manager!")
+            try:
+                yield
+            finally:
+                logger.info("Application shutting down...")
+
+    # Create an ASGI application using the transport
     starlette_app = Starlette(
         debug=True,
         routes=[
-            Route("/sse", endpoint=handle_sse, methods=["GET"]),
-            Mount("/messages/", app=sse.handle_post_message),
+            Mount("/mcp", app=handle_streamable_http),
         ],
+        lifespan=lifespan,
     )
 
-    uvicorn.run(starlette_app, host="0.0.0.0", port=port)
+    # Wrap ASGI application with CORS middleware to expose Mcp-Session-Id header
+    # for browser-based clients (ensures 500 errors get proper CORS headers)
+    starlette_app = CORSMiddleware(
+        starlette_app,
+        allow_origins=["*"],  # Allow all origins - adjust as needed for production
+        allow_methods=["GET", "POST", "DELETE"],  # MCP streamable HTTP methods
+        expose_headers=["Mcp-Session-Id"],
+    )
+
+    uvicorn.run(starlette_app, host="127.0.0.1", port=port)
+
+    return 0
 
 if __name__ == "__main__":
     main()

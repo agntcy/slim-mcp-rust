@@ -19,20 +19,22 @@ name = "slim-mcp-proxy"
 path = "src/main.rs"
 
 [dependencies]
-agntcy-slim = "1.0.0"
+agntcy-slim = "1.0.2"
 # from the slim repo
 # agntcy-slim = { git = "https://github.com/agntcy/slim.git", branch = "main" }
 agntcy-slim-auth = "0.5.0"
-agntcy-slim-config = "0.6.0"
-agntcy-slim-datapath = "0.11.1"
-agntcy-slim-service = "0.8.4"
-agntcy-slim-session = "0.1.4"
-agntcy-slim-signal = "0.1.4" 
+agntcy-slim-config = "0.6.2"
+agntcy-slim-datapath = "0.11.3"
+agntcy-slim-service = "0.8.6"
+agntcy-slim-session = "0.1.6"
+agntcy-slim-signal = "0.1.4"
 async-trait = "0.1"
 clap = "4.5.37"
-futures-util = "0.3.31"
 rand = "0.9.1"
-rmcp = { version = "0.1.5", features = ["client", "transport-sse"] }
+rmcp = { version = "0.14.0", features = [
+    "client",
+    "transport-streamable-http-client-reqwest",
+] }
 serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.41"
