@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.1...slim-mcp-proxy-v0.2.2) - 2026-02-24
+
+### Added
+
+- update deps and trigger release ([#21](https://github.com/agntcy/slim-mcp-rust/pull/21))
+
 ## [0.2.1](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.0...slim-mcp-proxy-v0.2.1) - 2026-02-02
 
 ### Added
