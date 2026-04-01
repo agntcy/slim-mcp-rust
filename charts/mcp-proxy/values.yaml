@@ -1,0 +1,112 @@
+# Default values for mcp-proxy.
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/agntcy/slim-mcp-rust/mcp-proxy
+  pullPolicy: IfNotPresent
+  tag: "0.2.1"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+
+service:
+  type: ClusterIP
+  port: 80
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  exec:
+    command:
+    - /bin/sh
+    - -c
+    - "ps aux | grep slim-mcp-proxy | grep -v grep"
+  initialDelaySeconds: 10
+  periodSeconds: 30
+
+readinessProbe:
+  exec:
+    command:
+    - /bin/sh
+    - -c
+    - "ps aux | grep slim-mcp-proxy | grep -v grep"
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+volumes: []
+volumeMounts: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# MCP Proxy Configuration
+proxy:
+  name: "org/mcp/k8s-proxy"
+  instanceId: ""
+  
+  mcpServer:
+    # URL of the MCP server to connect to
+    # Example: "http://kubernetes-mcp-server:8001/mcp"
+    url: ""
+  
+  slim:
+    serviceName: "slim/0"
+    
+    server:
+      # SLIM server endpoint
+      # If using SLIM chart installed separately: "http://slim:46357"
+      # If using SLIM from dependency: "http://mcp-proxy-slim:46357"
+      endpoint: "http://slim:46357"
+      tls:
+        insecure: true
+    
+    runtime:
+      nCores: 0
+      threadName: "slim-data-plane"
+      drainTimeout: "10s"
+    
+    tracing:
+      logLevel: "info"
+      displayThreadNames: true
+      displayThreadIds: true
+
+# To use SLIM as a dependency:
+# 1. Uncomment the dependencies section in Chart.yaml
+# 2. Configure your Helm repository
+# 3. Run: helm dependency update
+# 4. Set slim.enabled: true and configure as needed
+#
+# Or install SLIM separately using:
+# helm install slim oci://ghcr.io/agntcy/charts/slim -n mcp-system
+slim:
+  enabled: false
