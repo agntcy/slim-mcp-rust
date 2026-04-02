@@ -86,7 +86,10 @@ async fn main() {
 
     let mut config = config::ConfigLoader::new(config_file).expect("failed to load configuration");
     let svc_id = slim_config::component::id::ID::new_with_str(svc_name).unwrap();
-    let _guard = config.tracing().setup_tracing_subscriber();
+    let _guard = config
+        .tracing()
+        .expect("failed to get tracing configuration")
+        .setup_tracing_subscriber();
 
     let services = config.services().expect("error loading services");
     let service = services.shift_remove(&svc_id).expect("service not found");

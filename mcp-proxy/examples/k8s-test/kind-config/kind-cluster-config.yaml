@@ -1,0 +1,14 @@
+# Copyright AGNTCY Contributors (https://github.com/agntcy)
+# SPDX-License-Identifier: Apache-2.0
+
+# Kind cluster configuration for testing MCP proxy with kubernetes-mcp-server
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: mcp-test
+nodes:
+  - role: control-plane
+    # Expose API server for external access
+    extraPortMappings:
+      - containerPort: 6443
+        hostPort: 6443
+        protocol: TCP

@@ -1,0 +1,25 @@
+apiVersion: v2
+name: mcp-proxy
+description: A Helm chart for deploying SLIM MCP Proxy
+
+type: application
+
+version: 0.1.0
+
+appVersion: "0.2.1"
+
+keywords:
+  - mcp
+  - proxy
+  - slim
+  - model-context-protocol
+maintainers:
+  - name: AGNTCY Contributors
+    url: https://github.com/agntcy
+
+# SLIM dependency - Helm will automatically install SLIM when you install this chart
+dependencies:
+  - name: slim
+    version: "v1.3.0"
+    repository: "oci://ghcr.io/agntcy/slim/helm"
+    condition: slim.enabled
