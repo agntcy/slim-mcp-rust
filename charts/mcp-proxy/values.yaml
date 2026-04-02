@@ -55,27 +55,22 @@ affinity: {}
 proxy:
   name: "org/mcp/k8s-proxy"
   instanceId: ""
-  
   mcpServer:
     # URL of the MCP server to connect to
     # example url: "http://kubernetes-mcp-server:8080/sse"
     url: ""
-  
   slim:
     serviceName: "slim/0"
-    
     server:
       # SLIM server endpoint
       # With fullnameOverride set above, the service name is 'slim'
       endpoint: "http://slim:46357"
       tls:
         insecure: true
-    
     runtime:
       nCores: 0
       threadName: "slim-data-plane"
       drainTimeout: "10s"
-    
     tracing:
       logLevel: "info"
       displayThreadNames: true
