@@ -109,6 +109,32 @@ tasks:
           -f mcp-proxy/examples/k8s-test/mcp-proxy-config/mcp-proxy-values.yaml
         echo "MCP proxy, SLIM, and kubernetes-mcp-server installed in kind cluster!"
 
+  mcp-proxy:k8s:install-all-charts-using-local-proxy:
+    desc: create cluster and install all charts using locally built MCP proxy image
+    dir: "{{.TASKFILE_DIR}}/.."
+    cmds:
+      - task: mcp-proxy:k8s:build-local-image
+      - task: mcp-proxy:k8s:load-local-image
+      - |
+        echo "Updating Helm dependencies..."
+        helm dependency update ./charts/mcp-proxy
+      - |
+        echo "Installing kubernetes-mcp-server..."
+        helm install kubernetes-mcp-server oci://ghcr.io/containers/charts/kubernetes-mcp-server \
+          -n mcp-system \
+          --create-namespace \
+          -f mcp-proxy/examples/k8s-test/mcp-server-config/kubernetes-mcp-server-values.yaml
+      - |
+        echo "Installing MCP proxy chart with local image (includes SLIM as dependency)..."
+        VERSION=$(grep '^version = ' mcp-proxy/Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        helm install mcp-proxy ./charts/mcp-proxy \
+          -n mcp-system \
+          --create-namespace \
+          -f mcp-proxy/examples/k8s-test/mcp-proxy-config/mcp-proxy-values.yaml \
+          --set image.tag=$VERSION \
+          --set image.pullPolicy=Never
+        echo "Kind cluster created and all charts installed with local MCP proxy image!"
+
   mcp-proxy:k8s:uninstall-all-charts:
     desc: uninstall MCP proxy and kubernetes-mcp-server Helm charts
     cmds:
@@ -126,3 +152,25 @@ tasks:
         echo "Press Ctrl+C to stop"
         echo ""
         kubectl port-forward svc/slim 46357:46357 -n mcp-system
+
+  mcp-proxy:k8s:build-local-image:
+    desc: build MCP proxy Docker image locally
+    dir: "{{.TASKFILE_DIR}}/.."
+    cmds:
+      - |
+        echo "Building MCP proxy Docker image locally..."
+        VERSION=$(grep '^version = ' mcp-proxy/Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        echo "Version: $VERSION"
+        docker build -t ghcr.io/agntcy/slim-mcp-rust/mcp-proxy:$VERSION -f mcp-proxy/Dockerfile .
+        docker tag ghcr.io/agntcy/slim-mcp-rust/mcp-proxy:$VERSION ghcr.io/agntcy/slim-mcp-rust/mcp-proxy:latest
+        echo "Docker image built: ghcr.io/agntcy/slim-mcp-rust/mcp-proxy:$VERSION"
+
+  mcp-proxy:k8s:load-local-image:
+    desc: load local MCP proxy image into kind cluster
+    dir: "{{.TASKFILE_DIR}}/.."
+    cmds:
+      - |
+        echo "Loading MCP proxy image into kind cluster..."
+        VERSION=$(grep '^version = ' mcp-proxy/Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        kind load docker-image ghcr.io/agntcy/slim-mcp-rust/mcp-proxy:$VERSION --name mcp-test
+        echo "Image loaded into kind cluster"

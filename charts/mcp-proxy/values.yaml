@@ -57,7 +57,7 @@ proxy:
   instanceId: ""
   mcpServer:
     # URL of the MCP server to connect to
-    # example url: "http://kubernetes-mcp-server:8080/sse"
+    # example url: "http://kubernetes-mcp-server:8080/mcp"
     url: ""
   slim:
     serviceName: "slim/0"

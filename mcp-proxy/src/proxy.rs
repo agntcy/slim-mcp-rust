@@ -80,7 +80,8 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
         let mut incoming_conn_id: Option<u64> = None;
 
         // Connect to MCP server
-        let mut transport = StreamableHttpClientTransport::from_uri(mcp_server);
+        info!("Connecting to MCP server: {}", mcp_server);
+        let mut transport = StreamableHttpClientTransport::from_uri(mcp_server.clone());
 
         // Ping timer setup
         let (tx_timer, mut rx_timer) = mpsc::channel(128);
@@ -110,6 +111,7 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                                 Ok(v) => v,
                                 Err(e) => { error!("error parsing message: {}", e); continue; }
                             };
+                            debug!("Processing message type: {:?}", std::mem::discriminant(&jsonrpcmsg));
                             match jsonrpcmsg {
                                 JsonRpcMessage::Response(json_rpc_response) => {
                                     debug!("received response message: {:?}", json_rpc_response);
@@ -122,25 +124,38 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                                                         pending_pings.clear();
                                                     } else {
                                                         debug!("forward response to MCP server {:?}", json_rpc_response);
-                                                        if transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
+                                                        if let Err(e) = transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response.clone())).await {
+                                                            error!("failed sending response to MCP server: {:?}, response_id={:?}", e, json_rpc_response.id);
+                                                        }
                                                     }
                                                 }
                                                 _ => {
                                                     debug!("forward response to MCP server {:?}", json_rpc_response);
-                                                    if transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
+                                                    if let Err(e) = transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response.clone())).await {
+                                                        error!("failed sending response to MCP server: {:?}, response_id={:?}", e, json_rpc_response.id);
+                                                    }
                                                 }
                                             }
                                         }
                                         _ => {
                                             debug!("forward response to MCP server {:?}", json_rpc_response);
-                                            if transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response)).await.is_err() { error!("failed sending response to MCP server"); }
+                                            if let Err(e) = transport.send(rmcp::model::JsonRpcMessage::Response(json_rpc_response.clone())).await {
+                                                error!("failed sending response to MCP server: {:?}, response_id={:?}", e, json_rpc_response.id);
+                                            }
                                         }
                                     }
                                 }
                                 _ => {
                                     debug!("forward message to MCP server {:?}", jsonrpcmsg);
 
-                                    if transport.send(jsonrpcmsg).await.is_err() { error!("failed forwarding message to MCP server"); }
+                                    if let Err(e) = transport.send(jsonrpcmsg.clone()).await {
+                                        error!("failed forwarding message to MCP server: {:?}, message_type={}", e, match jsonrpcmsg {
+                                            JsonRpcMessage::Request(_) => "Request",
+                                            JsonRpcMessage::Response(_) => "Response",
+                                            JsonRpcMessage::Notification(_) => "Notification",
+                                            JsonRpcMessage::Error(_) => "Error",
+                                        });
+                                    }
                                 }
                             }
                         }
@@ -161,6 +176,12 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                             break;
                         }
                         Some(msg) => {
+                            debug!("Received message from MCP server, message_type={}", match &msg {
+                                JsonRpcMessage::Request(_) => "Request",
+                                JsonRpcMessage::Response(_) => "Response",
+                                JsonRpcMessage::Notification(_) => "Notification",
+                                JsonRpcMessage::Error(_) => "Error",
+                            });
                             if let Some(conn) = incoming_conn_id {
                                 if let Some(session_arc) = weak.upgrade() {
                                     let vec = serde_json::to_vec(&msg).unwrap();
