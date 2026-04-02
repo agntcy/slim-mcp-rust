@@ -52,8 +52,8 @@ tasks:
   mcp-proxy:build:strip:
     desc: "Build the project and strip the debug symbols"
     cmds:
-      - task: :build
-      - task: :toolchain:strip
+      - task: build
+      - task: toolchain:strip
         vars:
           TARGET_BIN: "target/{{.TARGET}}/{{.PROFILE}}/slim-mcp-proxy"
 
