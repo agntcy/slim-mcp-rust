@@ -1,0 +1,12 @@
+[project]
+name = "kubernetes-mcp-test-client"
+version = "0.1.0"
+description = "Test client for kubernetes-mcp-server through MCP proxy"
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "mcp==1.26.0",
+    "anyio>=4.5",
+    "slim-mcp>=0.2.1",
+]

@@ -17,9 +17,9 @@ maintainers:
   - name: AGNTCY Contributors
     url: https://github.com/agntcy
 
-# Uncomment to use SLIM as a dependency (requires Helm repository or OCI registry setup)
-# dependencies:
-#   - name: slim
-#     version: "~1.1.0"
-#     repository: "https://your-helm-repo/charts"
-#     condition: slim.enabled
+# SLIM dependency - Helm will automatically install SLIM when you install this chart
+dependencies:
+  - name: slim
+    version: "v1.3.0"
+    repository: "oci://ghcr.io/agntcy/slim/helm"
+    condition: slim.enabled

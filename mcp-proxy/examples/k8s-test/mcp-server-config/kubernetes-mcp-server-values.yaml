@@ -1,0 +1,25 @@
+# Kubernetes MCP Server Helm values
+# RBAC permissions for accessing resources in mcp-system namespace
+
+ingress:
+  enabled: false
+
+rbac:
+  # Create a Role in mcp-system namespace with permissions to list/get pods, services, events
+  extraRoles:
+  - name: mcp-system-reader
+    namespace: mcp-system
+    rules:
+    - apiGroups: [""]
+      resources: ["pods", "services", "events"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["pods/log"]
+      verbs: ["get"]
+  
+  # Bind the Role to the kubernetes-mcp-server ServiceAccount
+  extraRoleBindings:
+  - name: mcp-system-reader
+    namespace: mcp-system
+    roleRef:
+      name: mcp-system-reader

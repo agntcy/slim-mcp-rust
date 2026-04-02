@@ -1,0 +1,13 @@
+# Override values for mcp-proxy deployment in Kubernetes
+# This configures the proxy to connect to kubernetes-mcp-server
+
+# Enable SLIM as a dependency
+slim:
+  enabled: true
+  fullnameOverride: "slim"
+
+# MCP Proxy Configuration
+proxy:
+  mcpServer:
+    # kubernetes-mcp-server uses SSE transport at /sse endpoint
+    url: "http://kubernetes-mcp-server:8080/sse"
