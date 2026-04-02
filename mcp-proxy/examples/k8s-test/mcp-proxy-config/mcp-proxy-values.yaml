@@ -9,5 +9,5 @@ slim:
 # MCP Proxy Configuration
 proxy:
   mcpServer:
-    # kubernetes-mcp-server uses SSE transport at /sse endpoint
-    url: "http://kubernetes-mcp-server:8080/sse"
+    # kubernetes-mcp-server MCP endpoint
+    url: "http://kubernetes-mcp-server:8080/mcp"
