@@ -23,7 +23,7 @@ tasks:
     desc: run mcp server using SSE transport
     cmds:
       - |
-        cd examples/mcp-server/
+        cd examples/local-test/mcp-server/
         uv run main.py --port 8000
 
   mcp-proxy:run:
@@ -33,21 +33,18 @@ tasks:
       - |
         cargo run -- --config config/mcp-proxy-config.yaml \
           --svc-name slim/0 --name org/mcp/proxy \
-          --mcp-server http://localhost:8000/mcp
+          --mcp-server http://localhost:8000/mcp \
+          --secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:test:run-mcp-client:
     desc: run a simple MCP client that use SLIM as transport protocol
     cmds:
       - |
-        cd examples/mcp-slim-client
-        uv run main.py
-
-  mcp-proxy:test:reinstall-and-run-mcp-client:
-    desc: run a simple MCP client that use SLIM as transport protocol
-    cmds:
-      - |
-        cd examples/mcp-slim-client
-        uv run --reinstall main.py
+        cd examples/local-test/mcp-slim-client
+        uv run main.py \
+          --local-name org/mcp/client1 \
+          --proxy-name org/mcp/proxy \
+          --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:build:strip:
     desc: "Build the project and strip the debug symbols"

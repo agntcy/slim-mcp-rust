@@ -11,6 +11,8 @@ use rmcp::{
 };
 
 use slim_auth::shared_secret::SharedSecret;
+use slim_auth::spire::SpireIdentityManager;
+use slim_auth::auth_provider::{AuthProvider, AuthVerifier};
 use slim_datapath::messages::Name;
 use slim_session::{
     context::SessionContext,
@@ -31,6 +33,18 @@ use async_trait::async_trait;
 
 const PING_INTERVAL: u64 = 20;
 const MAX_PENDING_PINGS: usize = 3;
+
+/// Identity configuration for authentication
+pub enum IdentityConfig {
+    /// Shared secret authentication
+    SharedSecret(String),
+    /// SPIRE authentication
+    Spire {
+        socket_path: Option<String>,
+        target_spiffe_id: Option<String>,
+        jwt_audiences: Vec<String>,
+    },
+}
 
 struct PingTimerObserver {
     tx_proxy_session: mpsc::Sender<u32>,
@@ -232,15 +246,51 @@ impl Proxy {
     pub async fn start(
         &mut self,
         service: slim_service::Service,
-        secret: &str,
+        identity_config: IdentityConfig,
         _drain_timeout: std::time::Duration,
     ) {
+        let (provider, verifier): (AuthProvider, AuthVerifier) = match identity_config {
+            IdentityConfig::SharedSecret(secret) => {
+                info!("Using shared-secret authentication");
+                let provider = SharedSecret::new("proxy", &secret).expect("Failed to create SharedSecret");
+                let verifier = SharedSecret::new("proxy", &secret).expect("Failed to create SharedSecret");
+                (AuthProvider::shared_secret(provider), AuthVerifier::shared_secret(verifier))
+            }
+            IdentityConfig::Spire {
+                socket_path,
+                target_spiffe_id,
+                jwt_audiences,
+            } => {
+                info!("Using SPIRE authentication");
+                
+                // Build provider manager and verifier manager 
+                let mut provider_builder = SpireIdentityManager::builder();
+                let mut verifier_builder = SpireIdentityManager::builder();
+                if let Some(path) = &socket_path {
+                    provider_builder = provider_builder.with_socket_path(path.clone());
+                    verifier_builder = verifier_builder.with_socket_path(path.clone());
+                }
+                if let Some(spiffe_id) = &target_spiffe_id {
+                    provider_builder = provider_builder.with_target_spiffe_id(spiffe_id.clone());
+                    verifier_builder = verifier_builder.with_target_spiffe_id(spiffe_id.clone());
+                }
+                if !jwt_audiences.is_empty() {
+                    provider_builder = provider_builder.with_jwt_audiences(jwt_audiences.clone());
+                    verifier_builder = verifier_builder.with_jwt_audiences(jwt_audiences.clone());
+                }
+
+                let mut provider_manager = provider_builder.build().expect("Failed to build SpireIdentityManager for provider");
+                provider_manager.initialize().await.expect("Failed to initialize SpireIdentityManager for provider");
+
+                let mut verifier_manager = verifier_builder.build().expect("Failed to build SpireIdentityManager for verifier");
+                verifier_manager.initialize().await.expect("Failed to initialize SpireIdentityManager for verifier");
+
+                (AuthProvider::spire(provider_manager), AuthVerifier::spire(verifier_manager))
+            }
+        };
+
         let (app, mut slim_rx) = service
-            .create_app(
-                &self.name,
-                SharedSecret::new("proxy", secret).expect("Failed to create SharedSecret"),
-                SharedSecret::new("proxy", secret).expect("Failed to create SharedSecret"),
-            )
+            .create_app(&self.name, provider, verifier)
             .expect("failed to create app");
 
         // run the service - this will create all the connections provided via the config file.
