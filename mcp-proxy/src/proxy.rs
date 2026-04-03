@@ -10,9 +10,9 @@ use rmcp::{
     transport::{StreamableHttpClientTransport, Transport},
 };
 
+use slim_auth::auth_provider::{AuthProvider, AuthVerifier};
 use slim_auth::shared_secret::SharedSecret;
 use slim_auth::spire::SpireIdentityManager;
-use slim_auth::auth_provider::{AuthProvider, AuthVerifier};
 use slim_datapath::messages::Name;
 use slim_session::{
     context::SessionContext,
@@ -252,9 +252,14 @@ impl Proxy {
         let (provider, verifier): (AuthProvider, AuthVerifier) = match identity_config {
             IdentityConfig::SharedSecret(secret) => {
                 info!("Using shared-secret authentication");
-                let provider = SharedSecret::new("proxy", &secret).expect("Failed to create SharedSecret");
-                let verifier = SharedSecret::new("proxy", &secret).expect("Failed to create SharedSecret");
-                (AuthProvider::shared_secret(provider), AuthVerifier::shared_secret(verifier))
+                let provider =
+                    SharedSecret::new("proxy", &secret).expect("Failed to create SharedSecret");
+                let verifier =
+                    SharedSecret::new("proxy", &secret).expect("Failed to create SharedSecret");
+                (
+                    AuthProvider::shared_secret(provider),
+                    AuthVerifier::shared_secret(verifier),
+                )
             }
             IdentityConfig::Spire {
                 socket_path,
@@ -262,8 +267,8 @@ impl Proxy {
                 jwt_audiences,
             } => {
                 info!("Using SPIRE authentication");
-                
-                // Build provider manager and verifier manager 
+
+                // Build provider manager and verifier manager
                 let mut provider_builder = SpireIdentityManager::builder();
                 let mut verifier_builder = SpireIdentityManager::builder();
                 if let Some(path) = &socket_path {
@@ -279,13 +284,26 @@ impl Proxy {
                     verifier_builder = verifier_builder.with_jwt_audiences(jwt_audiences.clone());
                 }
 
-                let mut provider_manager = provider_builder.build().expect("Failed to build SpireIdentityManager for provider");
-                provider_manager.initialize().await.expect("Failed to initialize SpireIdentityManager for provider");
+                let mut provider_manager = provider_builder
+                    .build()
+                    .expect("Failed to build SpireIdentityManager for provider");
+                provider_manager
+                    .initialize()
+                    .await
+                    .expect("Failed to initialize SpireIdentityManager for provider");
 
-                let mut verifier_manager = verifier_builder.build().expect("Failed to build SpireIdentityManager for verifier");
-                verifier_manager.initialize().await.expect("Failed to initialize SpireIdentityManager for verifier");
+                let mut verifier_manager = verifier_builder
+                    .build()
+                    .expect("Failed to build SpireIdentityManager for verifier");
+                verifier_manager
+                    .initialize()
+                    .await
+                    .expect("Failed to initialize SpireIdentityManager for verifier");
 
-                (AuthProvider::spire(provider_manager), AuthVerifier::spire(verifier_manager))
+                (
+                    AuthProvider::spire(provider_manager),
+                    AuthVerifier::spire(verifier_manager),
+                )
             }
         };
 

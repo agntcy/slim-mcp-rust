@@ -144,5 +144,7 @@ async fn main() {
     );
 
     info!("starting MCP proxy");
-    proxy.start(service, identity_config, Duration::from_secs(10)).await;
+    proxy
+        .start(service, identity_config, Duration::from_secs(10))
+        .await;
 }
