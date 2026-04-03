@@ -11,3 +11,9 @@ proxy:
   mcpServer:
     # kubernetes-mcp-server MCP endpoint
     url: "http://kubernetes-mcp-server:8080/mcp"
+  # Authentication configuration
+  auth:
+    # Example: Using shared secret authentication
+    sharedSecret:
+      enabled: true
+      value: "secretsecretsecretsecretsecretsecret"

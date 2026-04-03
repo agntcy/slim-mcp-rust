@@ -83,7 +83,10 @@ tasks:
         echo "Starting Kubernetes MCP Test Client..."
         echo "Connecting via SLIM to MCP proxy..."
         echo ""
-        uv run client.py
+        uv run client.py \
+          --local-name org/mcp/k8s-client \
+          --proxy-name org/mcp/k8s-proxy \
+          --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:k8s:install-all-charts:
     desc: install SLIM, MCP proxy, and kubernetes-mcp-server in kind cluster
