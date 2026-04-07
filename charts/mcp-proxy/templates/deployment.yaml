@@ -54,6 +54,36 @@ spec:
           {{- end }}
           - --mcp-server
           - {{ .Values.proxy.mcpServer.url | quote }}
+          {{- if .Values.proxy.auth.sharedSecret.enabled }}
+          - --secret
+          {{- if .Values.proxy.auth.sharedSecret.existingSecret }}
+          - $(SHARED_SECRET)
+          {{- else }}
+          - {{ .Values.proxy.auth.sharedSecret.value | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.proxy.auth.spire.enabled }}
+          {{- if .Values.proxy.auth.spire.socketPath }}
+          - --spire-socket-path
+          - {{ .Values.proxy.auth.spire.socketPath | quote }}
+          {{- end }}
+          {{- if .Values.proxy.auth.spire.targetSpiffeId }}
+          - --spire-target-spiffe-id
+          - {{ .Values.proxy.auth.spire.targetSpiffeId | quote }}
+          {{- end }}
+          {{- if .Values.proxy.auth.spire.jwtAudiences }}
+          - --spire-jwt-audience
+          - {{ .Values.proxy.auth.spire.jwtAudiences | quote }}
+          {{- end }}
+          {{- end }}
+          {{- if and .Values.proxy.auth.sharedSecret.enabled .Values.proxy.auth.sharedSecret.existingSecret }}
+          env:
+          - name: SHARED_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.proxy.auth.sharedSecret.existingSecret.name }}
+                key: {{ .Values.proxy.auth.sharedSecret.existingSecret.key }}
+          {{- end }}
           {{- with .Values.resources }}
           resources:
             {{- toYaml . | nindent 12 }}

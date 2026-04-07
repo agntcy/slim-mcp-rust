@@ -11,11 +11,6 @@ data:
       display_thread_names: {{ .Values.proxy.slim.tracing.displayThreadNames }}
       display_thread_ids: {{ .Values.proxy.slim.tracing.displayThreadIds }}
     
-    runtime:
-      n_cores: {{ .Values.proxy.slim.runtime.nCores }}
-      thread_name: {{ .Values.proxy.slim.runtime.threadName | quote }}
-      drain_timeout: {{ .Values.proxy.slim.runtime.drainTimeout }}
-    
     services:
       {{ .Values.proxy.slim.serviceName }}:
         dataplane:

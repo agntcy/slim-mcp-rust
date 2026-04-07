@@ -14,3 +14,13 @@
   echo "Connect to MCP Proxy via SLIM at http://127.0.0.1:46357"
   kubectl --namespace {{ .Release.Namespace }} port-forward svc/slim 46357:46357
 {{- end }}
+
+2. Authentication configuration:
+{{- if .Values.proxy.auth.sharedSecret.enabled }}
+   ✓ Shared secret authentication is enabled
+{{- else if .Values.proxy.auth.spire.enabled }}
+   ✓ SPIRE authentication is enabled
+{{- else }}
+   ⚠ WARNING: No authentication method configured!
+   Please configure either shared secret or SPIRE authentication in values.yaml
+{{- end }}
