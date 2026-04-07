@@ -5,7 +5,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/agntcy/slim-mcp-rust/mcp-proxy
   pullPolicy: IfNotPresent
-  tag: "0.2.1"
+  tag: "0.2.5"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -36,14 +36,6 @@ service:
   type: ClusterIP
   port: 80
 
-# resources:
-#   limits:
-#     cpu: 500m
-#     memory: 512Mi
-#   requests:
-#     cpu: 100m
-#     memory: 128Mi
-
 volumes: []
 volumeMounts: []
 
@@ -57,8 +49,8 @@ proxy:
   instanceId: ""
   mcpServer:
     # URL of the MCP server to connect to
-    # example url: "http://kubernetes-mcp-server:8080/mcp"
-    url: ""
+    url: "http://kubernetes-mcp-server:8080/mcp"
+
   # Authentication configuration
   # Only one authentication method should be configured
   auth:
@@ -83,6 +75,7 @@ proxy:
       # Optional JWT audiences (comma-separated)
       # Example: "audience1,audience2"
       jwtAudiences: ""
+
   slim:
     serviceName: "slim/0"
     server:
