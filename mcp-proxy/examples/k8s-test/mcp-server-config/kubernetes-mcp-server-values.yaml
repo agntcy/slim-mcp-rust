@@ -1,25 +1,76 @@
 # Kubernetes MCP Server Helm values
 # RBAC permissions for accessing resources in mcp-system namespace
 
+# Disable ingress (not needed for SLIM proxy setup)
 ingress:
   enabled: false
 
+# RBAC configuration for cluster-wide read access
 rbac:
-  # Create a Role in mcp-system namespace with permissions to list/get pods, services, events
-  extraRoles:
-  - name: mcp-system-reader
-    namespace: mcp-system
-    rules:
-    - apiGroups: [""]
-      resources: ["pods", "services", "events"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: [""]
-      resources: ["pods/log"]
-      verbs: ["get"]
-  
-  # Bind the Role to the kubernetes-mcp-server ServiceAccount
-  extraRoleBindings:
-  - name: mcp-system-reader
-    namespace: mcp-system
-    roleRef:
-      name: mcp-system-reader
+  # Create ClusterRole with read permissions across the entire cluster
+  extraClusterRoles:
+    - name: kubernetes-mcp-server-reader
+      rules:
+        # Core Kubernetes resources (needed by default "core" toolset)
+        - apiGroups: [""]
+          resources:
+            - pods
+            - pods/log
+            - pods/status
+            - services
+            - endpoints
+            - events
+            - namespaces
+            - nodes
+            - persistentvolumes
+            - persistentvolumeclaims
+            - configmaps  # Optional: if you want to read configs
+            - secrets     # Optional: be careful with this
+          verbs: ["get", "list", "watch"]
+        
+        # Apps resources (deployments, replicasets, etc.)
+        - apiGroups: ["apps"]
+          resources:
+            - deployments
+            - replicasets
+            - statefulsets
+            - daemonsets
+          verbs: ["get", "list", "watch"]
+        
+        # Batch resources (jobs, cronjobs)
+        - apiGroups: ["batch"]
+          resources:
+            - jobs
+            - cronjobs
+          verbs: ["get", "list", "watch"]
+        
+        # Networking resources
+        - apiGroups: ["networking.k8s.io"]
+          resources:
+            - ingresses
+            - networkpolicies
+          verbs: ["get", "list", "watch"]
+
+  # Bind the ClusterRole to the kubernetes-mcp-server ServiceAccount
+  extraClusterRoleBindings:
+    - name: kubernetes-mcp-server-reader-binding
+      roleRef:
+        name: kubernetes-mcp-server-reader
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+      # The serviceAccountName will be automatically filled by the Helm chart
+      # It will be: <release-name>-kubernetes-mcp-server
+
+# Optional: Enable only the toolsets you need
+# By default, "config" and "core" are enabled
+# Uncomment to explicitly set:
+# config:
+#   toolsets: "core,config"
+
+# Optional: Run in read-only mode to prevent any modifications
+# config:
+#   readOnly: true
+
+# Optional: Disable destructive operations
+# config:
+#   disableDestructive: true
