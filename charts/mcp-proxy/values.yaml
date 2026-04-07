@@ -56,10 +56,10 @@ proxy:
   auth:
     # Shared secret authentication
     sharedSecret:
-      enabled: false
+      enabled: true
       # Secret value (minimum 32 characters)
       # Can also be provided via existing secret (see existingSecret below)
-      value: ""
+      value: "default-shared-secret-value-please-change"
       # Use an existing Kubernetes Secret for the shared secret
       # existingSecret:
       #   name: mcp-proxy-secret
