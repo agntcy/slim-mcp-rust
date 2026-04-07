@@ -35,6 +35,18 @@ pub struct Args {
     /// MCP Proxy shared secret
     #[arg(short = 's', long, value_name = "secret", required = false)]
     secret: Option<String>,
+
+    /// SPIRE Workload API socket path (e.g. unix:/tmp/spire-agent/public/api.sock)
+    #[arg(long, value_name = "socket_path", required = false)]
+    spire_socket_path: Option<String>,
+
+    /// SPIRE target SPIFFE ID
+    #[arg(long, value_name = "spiffe_id", required = false)]
+    spire_target_spiffe_id: Option<String>,
+
+    /// SPIRE JWT audiences (comma-separated)
+    #[arg(long, value_name = "audiences", required = false)]
+    spire_jwt_audience: Option<String>,
 }
 
 impl Args {
@@ -61,6 +73,18 @@ impl Args {
     pub fn secret(&self) -> Option<&String> {
         self.secret.as_ref()
     }
+
+    pub fn spire_socket_path(&self) -> Option<&String> {
+        self.spire_socket_path.as_ref()
+    }
+
+    pub fn spire_target_spiffe_id(&self) -> Option<&String> {
+        self.spire_target_spiffe_id.as_ref()
+    }
+
+    pub fn spire_jwt_audience(&self) -> Option<&String> {
+        self.spire_jwt_audience.as_ref()
+    }
 }
 
 #[tokio::main]
@@ -74,15 +98,15 @@ async fn main() {
     let _id = args.id();
     let server = args.mcp_server();
     let secret = args.secret();
+    let spire_socket_path = args.spire_socket_path();
+    let spire_target_spiffe_id = args.spire_target_spiffe_id();
+    let spire_jwt_audience = args.spire_jwt_audience();
 
     let v_name: Vec<&str> = name.split('/').collect();
     if v_name.len() != 3 {
         error!("error processing the MCP proxy name, invalid format");
         return;
     }
-
-    let default_secret = "secretsecretsecretsecretsecretsecret".to_string();
-    let secret = secret.unwrap_or(&default_secret);
 
     let mut config = config::ConfigLoader::new(config_file).expect("failed to load configuration");
     let svc_id = slim_config::component::id::ID::new_with_str(svc_name).unwrap();
@@ -94,11 +118,33 @@ async fn main() {
     let services = config.services().expect("error loading services");
     let service = services.shift_remove(&svc_id).expect("service not found");
 
+    // Create identity configuration based on command line arguments
+    let identity_config = if let Some(socket_path) = spire_socket_path {
+        // Use SPIRE authentication
+        let jwt_audiences = spire_jwt_audience
+            .map(|s| s.split(',').map(|a| a.trim().to_string()).collect())
+            .unwrap_or_else(|| vec!["slim".to_string()]);
+
+        proxy::IdentityConfig::Spire {
+            socket_path: Some(socket_path.clone()),
+            target_spiffe_id: spire_target_spiffe_id.cloned(),
+            jwt_audiences,
+        }
+    } else if let Some(secret_str) = secret {
+        // Use shared secret authentication
+        proxy::IdentityConfig::SharedSecret(secret_str.clone())
+    } else {
+        error!("No authentication method provided");
+        return;
+    };
+
     let mut proxy = proxy::Proxy::new(
         Name::from_strings([v_name[0], v_name[1], v_name[2]]),
         server.clone(),
     );
 
     info!("starting MCP proxy");
-    proxy.start(service, secret, Duration::from_secs(10)).await;
+    proxy
+        .start(service, identity_config, Duration::from_secs(10))
+        .await;
 }

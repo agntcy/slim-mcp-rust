@@ -23,7 +23,7 @@ tasks:
     desc: run mcp server using SSE transport
     cmds:
       - |
-        cd examples/mcp-server/
+        cd examples/local-test/mcp-server/
         uv run main.py --port 8000
 
   mcp-proxy:run:
@@ -33,21 +33,18 @@ tasks:
       - |
         cargo run -- --config config/mcp-proxy-config.yaml \
           --svc-name slim/0 --name org/mcp/proxy \
-          --mcp-server http://localhost:8000/mcp
+          --mcp-server http://localhost:8000/mcp \
+          --secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:test:run-mcp-client:
     desc: run a simple MCP client that use SLIM as transport protocol
     cmds:
       - |
-        cd examples/mcp-slim-client
-        uv run main.py
-
-  mcp-proxy:test:reinstall-and-run-mcp-client:
-    desc: run a simple MCP client that use SLIM as transport protocol
-    cmds:
-      - |
-        cd examples/mcp-slim-client
-        uv run --reinstall main.py
+        cd examples/local-test/mcp-slim-client
+        uv run main.py \
+          --local-name org/mcp/client1 \
+          --proxy-name org/mcp/proxy \
+          --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:build:strip:
     desc: "Build the project and strip the debug symbols"
@@ -86,7 +83,10 @@ tasks:
         echo "Starting Kubernetes MCP Test Client..."
         echo "Connecting via SLIM to MCP proxy..."
         echo ""
-        uv run client.py
+        uv run client.py \
+          --local-name org/mcp/k8s-client \
+          --proxy-name org/mcp/k8s-proxy \
+          --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:k8s:install-all-charts:
     desc: install SLIM, MCP proxy, and kubernetes-mcp-server in kind cluster
@@ -134,6 +134,36 @@ tasks:
           --set image.tag=$VERSION \
           --set image.pullPolicy=Never
         echo "Kind cluster created and all charts installed with local MCP proxy image!"
+
+  mcp-proxy:k8s:install-all-charts-using-local-proxy-and-secret:
+    desc: install all charts using locally built MCP proxy image and Kubernetes Secret
+    dir: "{{.TASKFILE_DIR}}/.."
+    cmds:
+      - task: mcp-proxy:k8s:build-local-image
+      - task: mcp-proxy:k8s:load-local-image
+      - |
+        echo "Updating Helm dependencies..."
+        helm dependency update ./charts/mcp-proxy
+      - |
+        echo "Creating Kubernetes Secret for authentication..."
+        kubectl create namespace mcp-system 2>/dev/null || true
+        kubectl apply -f mcp-proxy/examples/k8s-test/mcp-proxy-config/test-secret.yaml
+      - |
+        echo "Installing kubernetes-mcp-server..."
+        helm install kubernetes-mcp-server oci://ghcr.io/containers/charts/kubernetes-mcp-server \
+          -n mcp-system \
+          --create-namespace \
+          -f mcp-proxy/examples/k8s-test/mcp-server-config/kubernetes-mcp-server-values.yaml
+      - |
+        echo "Installing MCP proxy chart with local image and Secret-based authentication..."
+        VERSION=$(grep '^version = ' mcp-proxy/Cargo.toml | sed 's/version = "\(.*\)"/\1/')
+        helm install mcp-proxy ./charts/mcp-proxy \
+          -n mcp-system \
+          --create-namespace \
+          -f mcp-proxy/examples/k8s-test/mcp-proxy-config/mcp-proxy-values-with-secret.yaml \
+          --set image.tag=$VERSION \
+          --set image.pullPolicy=Never
+        echo "Kind cluster created and all charts installed with local image and Secret-based auth!"
 
   mcp-proxy:k8s:uninstall-all-charts:
     desc: uninstall MCP proxy and kubernetes-mcp-server Helm charts

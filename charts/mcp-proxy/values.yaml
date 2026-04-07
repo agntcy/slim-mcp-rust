@@ -50,6 +50,32 @@ proxy:
   mcpServer:
     # URL of the MCP server to connect to
     url: "http://kubernetes-mcp-server:8080/mcp"
+
+  # Authentication configuration
+  # Only one authentication method should be configured
+  auth:
+    # Shared secret authentication
+    sharedSecret:
+      enabled: false
+      # Secret value (minimum 32 characters)
+      # Can also be provided via existing secret (see existingSecret below)
+      value: ""
+      # Use an existing Kubernetes Secret for the shared secret
+      # existingSecret:
+      #   name: mcp-proxy-secret
+      #   key: shared-secret
+    # SPIRE authentication
+    spire:
+      enabled: false
+      # Path to SPIRE Workload API socket
+      # Example: "unix:/tmp/spire-agent/public/api.sock"
+      socketPath: ""
+      # Optional target SPIFFE ID
+      targetSpiffeId: ""
+      # Optional JWT audiences (comma-separated)
+      # Example: "audience1,audience2"
+      jwtAudiences: ""
+
   slim:
     serviceName: "slim/0"
     server:
@@ -58,10 +84,6 @@ proxy:
       endpoint: "http://slim:46357"
       tls:
         insecure: true
-    runtime:
-      nCores: 0
-      threadName: "slim-data-plane"
-      drainTimeout: "10s"
     tracing:
       logLevel: "info"
       displayThreadNames: true

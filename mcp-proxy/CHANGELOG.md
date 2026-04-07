@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.4...slim-mcp-proxy-v0.2.5) - 2026-04-07
+
+### Added
+
+- improve identity configuration ([#40](https://github.com/agntcy/slim-mcp-rust/pull/40))
+
+### Fixed
+
+- make test work with new version of rmcp ([#36](https://github.com/agntcy/slim-mcp-rust/pull/36))
+
 ## [0.2.4](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.3...slim-mcp-proxy-v0.2.4) - 2026-04-02
 
 ### Added

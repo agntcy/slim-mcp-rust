@@ -282,7 +282,7 @@ dependencies = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.5" },
     { name = "mcp", specifier = "==1.26.0" },
-    { name = "slim-mcp", specifier = ">=0.2.1" },
+    { name = "slim-mcp", specifier = ">=0.2.2" },
 ]
 
 [[package]]
@@ -492,16 +492,16 @@ wheels = [
 
 [[package]]
 name = "slim-mcp"
-version = "0.2.1"
+version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "mcp" },
     { name = "slim-bindings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d7/6f/7b65ac439a3afc2018c0718f027b13c9ef4ddeb257ed2c3712e206b1d76d/slim_mcp-0.2.1.tar.gz", hash = "sha256:c752b08d62595013b7ef807e65e5af98af691e4bf1252f9dc645dca687381a79", size = 163145, upload-time = "2026-02-20T13:12:04.945Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/46/77/ff76ae083271dca883c8ef6f2ec1cd392904e34695004c32160d2b0607aa/slim_mcp-0.2.2.tar.gz", hash = "sha256:942a4c0f0525ab9309ef8a5d7c78ab132e294a2f3e242b2c8ddf96d7837a2077", size = 164338, upload-time = "2026-04-03T11:27:35.637Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/e2/fffd2ed54f83e839bda7c230252ed6a7cde0c76e08cff7983b025cd4d257/slim_mcp-0.2.1-py3-none-any.whl", hash = "sha256:b2d6442afceb6f9400864616a8d0509f59e8287250bad1eb6ad06712c36aa681", size = 24200, upload-time = "2026-02-20T13:12:03.981Z" },
+    { url = "https://files.pythonhosted.org/packages/00/7e/0203ff663c2f85da22f29fed7a12442a540393d352df018861d4e8be825c/slim_mcp-0.2.2-py3-none-any.whl", hash = "sha256:914d2881b4cb32b48d931b27818a601726ea5dcf514bc80c44acd1e1fb1ab2bc", size = 25228, upload-time = "2026-04-03T11:27:34.119Z" },
 ]
 
 [[package]]
