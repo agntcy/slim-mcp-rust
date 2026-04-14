@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/agntcy/slim-mcp-rust/compare/helm-mcp-proxy-v0.1.3...helm-mcp-proxy-v0.1.4) (2026-04-14)
+
+
+### Bug Fixes
+
+* **helm:** volumes and volumes mount indentation ([#41](https://github.com/agntcy/slim-mcp-rust/issues/41)) ([f64471f](https://github.com/agntcy/slim-mcp-rust/commit/f64471f9fe29b0874e5f6854f2003cb1c0fee4ed))
+
 ## [0.1.3](https://github.com/agntcy/slim-mcp-rust/compare/helm-mcp-proxy-v0.1.2...helm-mcp-proxy-v0.1.3) (2026-04-07)
 
 
