@@ -7,7 +7,10 @@ use rmcp::{
         ClientNotification, ClientRequest, ClientResult, JsonRpcMessage, JsonRpcRequest,
         PingRequest, PingRequestMethod, ServerJsonRpcMessage,
     },
-    transport::{StreamableHttpClientTransport, Transport},
+    transport::{
+        streamable_http_client::StreamableHttpClientTransportConfig, StreamableHttpClientTransport,
+        Transport,
+    },
 };
 
 use slim_auth::auth_provider::{AuthProvider, AuthVerifier};
@@ -78,12 +81,13 @@ struct SessionId {
 pub struct Proxy {
     name: Name,
     mcp_server: String,
+    mcp_auth_token: Option<String>,
     // retain mapping for active session ids to help with cleanup / debugging
     connections: HashMap<SessionId, ()>,
 }
 
 /// Spawn the async task that bridges a SLIM session with the MCP server.
-fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
+fn start_proxy_session(ctx: SessionContext, mcp_server: String, mcp_auth_token: Option<String>) {
     let session_id_val = ctx.session_arc().unwrap().id();
     ctx.spawn_receiver(move |mut rx, weak| async move {
         info!(%session_id_val, "Session handler task started");
@@ -95,7 +99,14 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
 
         // Connect to MCP server
         info!("Connecting to MCP server: {}", mcp_server);
-        let mut transport = StreamableHttpClientTransport::from_uri(mcp_server.clone());
+        let mut transport = match mcp_auth_token {
+            Some(ref token) => {
+                let config = StreamableHttpClientTransportConfig::with_uri(mcp_server.clone())
+                    .auth_header(token.clone());
+                StreamableHttpClientTransport::from_config(config)
+            }
+            None => StreamableHttpClientTransport::from_uri(mcp_server.clone()),
+        };
 
         // Ping timer setup
         let (tx_timer, mut rx_timer) = mpsc::channel(128);
@@ -235,10 +246,11 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
 }
 
 impl Proxy {
-    pub fn new(name: Name, mcp_server: String) -> Self {
+    pub fn new(name: Name, mcp_server: String, mcp_auth_token: Option<String>) -> Self {
         Self {
             name,
             mcp_server,
+            mcp_auth_token,
             connections: HashMap::new(),
         }
     }
@@ -345,7 +357,7 @@ impl Proxy {
                                     let session_key = SessionId { source: source_name, id: session_id_val };
                                     self.connections.insert(session_key, ());
                                     debug!("mcp_server {}", self.mcp_server);
-                                    start_proxy_session(ctx, self.mcp_server.clone());
+                                    start_proxy_session(ctx, self.mcp_server.clone(), self.mcp_auth_token.clone());
                                 }
                                 Ok(Notification::NewMessage(msg)) => {
                                     // Unexpected standalone app-level message for proxy use-case
