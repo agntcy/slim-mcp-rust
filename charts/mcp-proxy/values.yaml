@@ -5,7 +5,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/agntcy/slim-mcp-rust/mcp-proxy
   pullPolicy: IfNotPresent
-  tag: "0.2.5"
+  tag: "0.2.6"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -43,6 +43,18 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 
+# env:
+# - name: SHARED_SECRET
+#   valueFrom:
+#     secretKeyRef:
+#       name: mcp-proxy-secret
+#       key: shared-secret
+# - name: MCP_AUTH_TOKEN
+#   valueFrom:
+#     secretKeyRef:
+#       name: mcp-proxy-secret
+#       key: mcp-auth-token
+
 # MCP Proxy Configuration
 proxy:
   name: "org/mcp/k8s-proxy"
@@ -50,6 +62,9 @@ proxy:
   mcpServer:
     # URL of the MCP server to connect to
     url: "http://kubernetes-mcp-server:8080/mcp"
+    auth:
+      enabled: false
+      envVar: SHARED_SECRET
 
   # Authentication configuration
   # Only one authentication method should be configured
@@ -60,10 +75,8 @@ proxy:
       # Secret value (minimum 32 characters)
       # Can also be provided via existing secret (see existingSecret below)
       value: "default-shared-secret-value-please-change"
-      # Use an existing Kubernetes Secret for the shared secret
-      # existingSecret:
-      #   name: mcp-proxy-secret
-      #   key: shared-secret
+      # Use an existing Kubernetes Secret
+      # envVar: SHARED_SECRET
     # SPIRE authentication
     spire:
       enabled: false
