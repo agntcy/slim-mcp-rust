@@ -47,6 +47,10 @@ pub struct Args {
     /// SPIRE JWT audiences (comma-separated)
     #[arg(long, value_name = "audiences", required = false)]
     spire_jwt_audience: Option<String>,
+
+    /// MCP Server auth token (e.g. lin_api_xxx). Sent as Bearer token.
+    #[arg(long, value_name = "token", required = false)]
+    mcp_auth_token: Option<String>,
 }
 
 impl Args {
@@ -84,6 +88,10 @@ impl Args {
 
     pub fn spire_jwt_audience(&self) -> Option<&String> {
         self.spire_jwt_audience.as_ref()
+    }
+
+    pub fn mcp_auth_token(&self) -> Option<&String> {
+        self.mcp_auth_token.as_ref()
     }
 }
 
@@ -141,6 +149,7 @@ async fn main() {
     let mut proxy = proxy::Proxy::new(
         Name::from_strings([v_name[0], v_name[1], v_name[2]]),
         server.clone(),
+        args.mcp_auth_token().cloned(),
     );
 
     info!("starting MCP proxy");
