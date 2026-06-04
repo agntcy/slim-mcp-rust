@@ -51,30 +51,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Resolve the MCP auth token argument value.
-Returns the token directly if set, otherwise a Kubernetes env var reference.
-*/}}
-{{- define "mcp-proxy.mcpAuthTokenArg" -}}
-{{- if .Values.proxy.mcpServer.auth.token -}}
-{{- .Values.proxy.mcpServer.auth.token | quote -}}
-{{- else -}}
-{{- printf "$(%s)" .Values.proxy.mcpServer.auth.envVar -}}
-{{- end -}}
-{{- end }}
-
-{{/*
-Resolve the shared secret argument value.
-Returns the secret directly if set, otherwise a Kubernetes env var reference.
-*/}}
-{{- define "mcp-proxy.sharedSecretArg" -}}
-{{- if .Values.proxy.auth.sharedSecret.value -}}
-{{- .Values.proxy.auth.sharedSecret.value | quote -}}
-{{- else -}}
-{{- printf "$(%s)" .Values.proxy.auth.sharedSecret.envVar -}}
-{{- end -}}
-{{- end }}
-
-{{/*
 Create the name of the service account to use
 */}}
 {{- define "mcp-proxy.serviceAccountName" -}}

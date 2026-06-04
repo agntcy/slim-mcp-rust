@@ -56,11 +56,19 @@ spec:
           - {{ .Values.proxy.mcpServer.url | quote }}
           {{- if .Values.proxy.mcpServer.auth.enabled }}
           - --mcp-auth-token
-          - {{ include "mcp-proxy.mcpAuthTokenArg" . }}
+          {{- if .Values.proxy.mcpServer.auth.existingSecret }}
+          - $(MCP_AUTH_TOKEN)
+          {{- else }}
+          - {{ .Values.proxy.mcpServer.auth.value | quote }}
+          {{- end }}
           {{- end }}
           {{- if .Values.proxy.auth.sharedSecret.enabled }}
           - --secret
-          - {{ include "mcp-proxy.sharedSecretArg" . }}
+          {{- if .Values.proxy.auth.sharedSecret.existingSecret }}
+          - $(SHARED_SECRET)
+          {{- else }}
+          - {{ .Values.proxy.auth.sharedSecret.value | quote }}
+          {{- end }}
           {{- end }}
           {{- if .Values.proxy.auth.spire.enabled }}
           {{- if .Values.proxy.auth.spire.socketPath }}
