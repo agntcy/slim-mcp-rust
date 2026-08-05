@@ -37,13 +37,13 @@ tasks:
           --secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:test:run-mcp-client:
-    desc: run a simple MCP client that use SLIM as transport protocol
+    desc: run a simple MCP client that uses SLIM as transport protocol
+    dir: "{{.TASKFILE_DIR}}/.."
     cmds:
       - |
-        cd examples/local-test/mcp-slim-client
-        uv run main.py \
+        cargo run -p agntcy-slim-mcp-transport --example mcp-slim-client -- \
           --local-name org/mcp/client1 \
-          --proxy-name org/mcp/proxy \
+          --server-name org/mcp/proxy \
           --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:build:strip:

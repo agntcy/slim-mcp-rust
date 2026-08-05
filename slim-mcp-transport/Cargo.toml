@@ -1,0 +1,32 @@
+[package]
+name = "agntcy-slim-mcp-transport"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "SLIM transport for the MCP Rust SDK (rmcp)"
+
+[package.metadata.cargo-machete.renamed]
+agntcy-slim-auth = "slim_auth"
+agntcy-slim-config = "slim_config"
+agntcy-slim-datapath = "slim_datapath"
+agntcy-slim-service = "slim_service"
+agntcy-slim-session = "slim_session"
+
+[dependencies]
+agntcy-slim-auth = "0.14.6"
+agntcy-slim-config = "0.14.5"
+agntcy-slim-datapath = "0.18.2"
+agntcy-slim-service = "0.12.6"
+agntcy-slim-session = "0.7.6"
+rmcp = { version = "0.14.0", features = ["client", "server", "transport-worker"] }
+serde_json = "1.0"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+
+[dev-dependencies]
+agntcy-slim = "2.0.0"
+clap = { version = "4", features = ["derive"] }
+rmcp = { version = "0.14.0", features = ["client", "server", "transport-worker"] }
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = "0.3"
