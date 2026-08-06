@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use slim::config;
-use slim_datapath::messages::Name;
+use slim_datapath::api::proto::dataplane::v1::Name;
 use std::time::Duration;
 use tracing::{error, info};
 

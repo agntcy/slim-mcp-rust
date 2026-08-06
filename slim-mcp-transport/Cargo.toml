@@ -26,7 +26,11 @@ tracing = "0.1"
 
 [dev-dependencies]
 agntcy-slim = "2.0.0"
+axum = "0.8"
 clap = { version = "4", features = ["derive"] }
-rmcp = { version = "0.14.0", features = ["client", "server", "transport-worker"] }
+reqwest = { version = "0.12", features = ["rustls-tls"] }
+rmcp = { version = "0.14.0", features = ["client", "server", "transport-worker", "transport-streamable-http-server"] }
+schemars = "1.0"
+serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 tracing-subscriber = "0.3"

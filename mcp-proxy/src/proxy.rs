@@ -13,7 +13,7 @@ use rmcp::{
 use slim_auth::auth_provider::{AuthProvider, AuthVerifier};
 use slim_auth::shared_secret::SharedSecret;
 use slim_auth::spire::SpireIdentityManager;
-use slim_datapath::messages::Name;
+use slim_datapath::api::proto::dataplane::v1::Name;
 use slim_session::{
     context::SessionContext,
     notification::Notification,

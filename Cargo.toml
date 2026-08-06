@@ -1,5 +1,5 @@
 [workspace]
-members = ["mcp-proxy"]
+members = ["mcp-proxy", "slim-mcp-transport"]
 
 default-members = ["mcp-proxy"]
 
