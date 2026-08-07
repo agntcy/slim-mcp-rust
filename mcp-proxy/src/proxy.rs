@@ -91,8 +91,6 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
         let binding = weak.upgrade();
         let remote_name = binding.as_ref().unwrap().dst();
 
-        let mut incoming_conn_id: Option<u64> = None;
-
         // Connect to MCP server
         info!("Connecting to MCP server: {}", mcp_server);
         let mut transport = StreamableHttpClientTransport::from_uri(mcp_server.clone());
@@ -115,11 +113,6 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                             break;
                         }
                         Some(Ok(message)) => {
-                            if incoming_conn_id.is_none() {
-                                // derive remote routing info from first message
-                                incoming_conn_id = Some(message.get_incoming_conn());
-                                debug!("Initialized remote routing: name={:?} conn_id={:?}", remote_name, incoming_conn_id);
-                            }
                             let payload = match message.get_payload() { Some(p) => p.as_application_payload().unwrap().blob.to_vec(), None => { error!("empty payload"); continue; } };
                             let jsonrpcmsg: JsonRpcMessage<ClientRequest, ClientResult, ClientNotification> = match serde_json::from_slice(&payload) {
                                 Ok(v) => v,
@@ -196,14 +189,10 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                                 JsonRpcMessage::Notification(_) => "Notification",
                                 JsonRpcMessage::Error(_) => "Error",
                             });
-                            if let Some(conn) = incoming_conn_id {
-                                if let Some(session_arc) = weak.upgrade() {
-                                    let vec = serde_json::to_vec(&msg).unwrap();
-                                    if let Err(e) = session_arc.publish_to(remote_name, conn, vec, None, None).await { error!("error sending MCP->client message: {}", e); }
-                                } else { debug!("session dropped before sending MCP message"); break; }
-                            } else {
-                                debug!("dropping MCP message: remote not initialized yet");
-                            }
+                            if let Some(session_arc) = weak.upgrade() {
+                                let vec = serde_json::to_vec(&msg).unwrap();
+                                if let Err(e) = session_arc.publish(remote_name, vec, None, None).await { error!("error sending MCP->client message: {}", e); }
+                            } else { debug!("session dropped before sending MCP message"); break; }
                         }
                     }
                 }
@@ -217,13 +206,13 @@ fn start_proxy_session(ctx: SessionContext, mcp_server: String) {
                                 let _ = transport.close().await;
                                 break;
                             }
-                            if let Some(conn) = incoming_conn_id && let Some(session_arc) = weak.upgrade() {
+                            if let Some(session_arc) = weak.upgrade() {
                                 let ping_req = PingRequest { method: PingRequestMethod, extensions: Default::default()  };
                                 let index = rand::random::<i64>();
                                 pending_pings.insert(index);
                                 let req = ServerJsonRpcMessage::Request(JsonRpcRequest { jsonrpc: rmcp::model::JsonRpcVersion2_0, id: Number(index), request: rmcp::model::ServerRequest::PingRequest(ping_req) });
                                 let vec = serde_json::to_vec(&req).unwrap();
-                                if let Err(e) = session_arc.publish_to(remote_name, conn, vec, None, None).await { error!("error sending ping: {}", e); }
+                                if let Err(e) = session_arc.publish(remote_name, vec, None, None).await { error!("error sending ping: {}", e); }
                             }
                         }
                     }

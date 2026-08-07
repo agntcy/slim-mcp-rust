@@ -18,7 +18,7 @@ agntcy-slim-config = "0.14.5"
 agntcy-slim-datapath = "0.18.2"
 agntcy-slim-service = "0.12.6"
 agntcy-slim-session = "0.7.6"
-rmcp = { version = "0.14.0", features = ["client", "server", "transport-worker"] }
+rmcp = { version = "3.1.1", features = ["client", "server", "transport-worker"] }
 serde_json = "1.0"
 thiserror = "2"
 tokio = { version = "1", features = ["full"] }
@@ -29,7 +29,7 @@ agntcy-slim = "2.0.0"
 axum = "0.8"
 clap = { version = "4", features = ["derive"] }
 reqwest = { version = "0.12", features = ["rustls-tls"] }
-rmcp = { version = "0.14.0", features = ["client", "server", "transport-worker", "transport-streamable-http-server"] }
+rmcp = { version = "3.1.1", features = ["client", "server", "transport-worker", "transport-streamable-http-server"] }
 schemars = "1.0"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }

@@ -31,7 +31,7 @@ agntcy-slim-signal = "0.1.21"
 async-trait = "0.1.88"
 clap = "4.5.37"
 rand = "0.9.1"
-rmcp = { version = "0.14.0", features = [
+rmcp = { version = "3.1.1", features = [
     "client",
     "transport-streamable-http-client-reqwest",
 ] }

@@ -19,14 +19,14 @@ use rmcp::{
     ErrorData, ServerHandler,
     handler::server::{router::prompt::PromptRouter, router::tool::ToolRouter, wrapper::Parameters},
     model::{
-        GetPromptRequestParams, GetPromptResult, ListPromptsResult, ListResourcesResult,
-        PaginatedRequestParams, PromptMessage, PromptMessageRole,
-        RawResource, ReadResourceRequestParams, ReadResourceResult, Resource,
-        ResourceContents, ServerCapabilities, ServerInfo, SubscribeRequestParams,
-        UnsubscribeRequestParams,
+        ListResourcesResult, PaginatedRequestParams,
+        PromptMessage, ProtocolVersion, ReadResourceRequestParams, ReadResourceResult,
+        ReadResourceResponse, Resource, ResourceContents, Role, ServerCapabilities, ServerInfo,
+        SubscriptionFilter,
     },
     prompt, prompt_handler, prompt_router,
     service::RequestContext,
+    service::SubscriptionContext,
     serve_server,
     tool, tool_handler, tool_router,
 };
@@ -147,13 +147,13 @@ impl McpServer {
     fn simple(&self, Parameters(SimplePromptParams { context, topic }): Parameters<SimplePromptParams>) -> Vec<PromptMessage> {
         let mut messages = Vec::new();
         if let Some(ctx) = context {
-            messages.push(PromptMessage::new_text(PromptMessageRole::User, ctx));
+            messages.push(PromptMessage::new_text(Role::User, ctx));
         }
         let body = match topic {
             Some(t) => format!("Please help me with the following topic: {t}"),
             None => "Please help me with whatever questions I may have.".to_string(),
         };
-        messages.push(PromptMessage::new_text(PromptMessageRole::User, body));
+        messages.push(PromptMessage::new_text(Role::User, body));
         messages
     }
 }
@@ -164,14 +164,14 @@ impl McpServer {
 #[prompt_handler(router = self.prompt_router)]
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            capabilities: ServerCapabilities::builder()
+        ServerInfo::new(
+            ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
+                .enable_resources_subscribe()
                 .enable_prompts()
                 .build(),
-            ..Default::default()
-        }
+        ).with_protocol_version(ProtocolVersion::V_2026_07_28)
     }
 
     async fn list_resources(
@@ -181,19 +181,7 @@ impl ServerHandler for McpServer {
     ) -> Result<ListResourcesResult, ErrorData> {
         Ok(ListResourcesResult::with_all_items(
             RESOURCES.iter().map(|(name, uri, _)| {
-                Resource::new(
-                    RawResource {
-                        uri: (*uri).to_string(),
-                        name: (*name).to_string(),
-                        title: None,
-                        description: None,
-                        mime_type: Some("text/plain".to_string()),
-                        size: None,
-                        icons: None,
-                        meta: None,
-                    },
-                    None,
-                )
+                Resource::new(*uri, *name).with_mime_type("text/plain")
             }).collect(),
         ))
     }
@@ -202,16 +190,11 @@ impl ServerHandler for McpServer {
         &self,
         request: ReadResourceRequestParams,
         _context: RequestContext<RoleServer>,
-    ) -> Result<ReadResourceResult, ErrorData> {
+    ) -> Result<ReadResourceResponse, ErrorData> {
         match RESOURCES.iter().find(|(_, uri, _)| *uri == request.uri) {
-            Some((_, uri, text)) => Ok(ReadResourceResult {
-                contents: vec![ResourceContents::TextResourceContents {
-                    uri: (*uri).to_string(),
-                    mime_type: Some("text/plain".to_string()),
-                    text: (*text).to_string(),
-                    meta: None,
-                }],
-            }),
+            Some((_, uri, text)) => Ok(ReadResourceResult::new(vec![
+                ResourceContents::text(*text, *uri).with_mime_type("text/plain"),
+            ]).into()),
             None => Err(ErrorData::resource_not_found(
                 format!("resource not found: {}", request.uri),
                 None,
@@ -219,19 +202,15 @@ impl ServerHandler for McpServer {
         }
     }
 
-    async fn subscribe(
+    fn accepted_subscription_filter(
         &self,
-        _request: SubscribeRequestParams,
-        _context: RequestContext<RoleServer>,
-    ) -> Result<(), ErrorData> {
-        Ok(())
+        requested: &SubscriptionFilter,
+    ) -> Option<SubscriptionFilter> {
+        Some(requested.clone())
     }
 
-    async fn unsubscribe(
-        &self,
-        _request: UnsubscribeRequestParams,
-        _context: RequestContext<RoleServer>,
-    ) -> Result<(), ErrorData> {
+    async fn listen(&self, context: SubscriptionContext) -> Result<(), ErrorData> {
+        context.cancelled().await;
         Ok(())
     }
 }
@@ -254,7 +233,7 @@ async fn run_http(port: u16) {
     let service = StreamableHttpService::new(
         || Ok(McpServer::new()),
         Arc::new(LocalSessionManager::default()),
-        StreamableHttpServerConfig::default(),
+        StreamableHttpServerConfig::default().disable_allowed_hosts(),
     );
     let router = axum::Router::new().nest_service("/mcp", service);
     let addr = format!("127.0.0.1:{port}");
@@ -320,8 +299,13 @@ async fn run_slim(args: Args) {
         match listener.accept().await {
             Some(Ok(transport)) => {
                 tokio::spawn(async move {
-                    if let Err(e) = serve_server(McpServer::new(), transport).await {
-                        error!("session error: {e}");
+                    match serve_server(McpServer::new(), transport).await {
+                        Ok(service) => {
+                            if let Err(e) = service.waiting().await {
+                                error!("session error: {e}");
+                            }
+                        }
+                        Err(e) => error!("session initialization error: {e}"),
                     }
                 });
             }

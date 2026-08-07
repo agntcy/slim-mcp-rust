@@ -10,6 +10,7 @@ use slim_session::SessionConfig;
 
 use crate::SlimApp;
 use crate::error::SlimTransportError;
+use tracing::{debug, warn};
 
 /// A `Transport<RoleClient>` backed by a single outgoing SLIM session.
 pub type SlimClientTransport = WorkerTransport<SlimClientWorker>;
@@ -51,10 +52,9 @@ impl Worker for SlimClientWorker {
     }
 
     fn config(&self) -> WorkerConfig {
-        WorkerConfig {
-            name: Some("slim-client".to_string()),
-            channel_buffer_capacity: 32,
-        }
+        let mut cfg = WorkerConfig::default();
+        cfg.name = Some("slim-client".to_string());
+        cfg
     }
 
     async fn run(
@@ -72,6 +72,7 @@ impl Worker for SlimClientWorker {
             metadata: Default::default(),
         });
 
+        debug!(%destination, "creating SLIM session");
         let (session_ctx, completion) = app
             .create_session(cfg, destination, None)
             .await
@@ -86,6 +87,7 @@ impl Worker for SlimClientWorker {
             .upgrade()
             .ok_or_else(|| WorkerQuitReason::fatal(SlimTransportError::NoSession, "session upgrade"))?;
         let dst = session.dst().clone();
+        debug!(%dst, "SLIM session established");
 
         loop {
             tokio::select! {
@@ -96,6 +98,7 @@ impl Worker for SlimClientWorker {
                 send_req = ctx.from_handler_rx.recv() => {
                     let req = send_req
                         .ok_or(WorkerQuitReason::HandlerTerminated)?;
+                    debug!(%dst, message = ?req.message, "sending message to SLIM");
                     let bytes = serde_json::to_vec(&req.message)
                         .map_err(|e| WorkerQuitReason::fatal(SlimTransportError::Serde(e), "serialize outgoing"))?;
                     session
@@ -108,6 +111,7 @@ impl Worker for SlimClientWorker {
                 incoming = session_rx.recv() => {
                     match incoming {
                         Some(Ok(msg)) => {
+                            debug!(%dst, "received message from SLIM");
                             let content = msg
                                 .get_payload()
                                 .ok_or_else(|| WorkerQuitReason::fatal(
@@ -125,12 +129,16 @@ impl Worker for SlimClientWorker {
                             ctx.send_to_handler(json_msg).await?;
                         }
                         Some(Err(e)) => {
+                            warn!(%dst, error = %e, "SLIM session error");
                             return Err(WorkerQuitReason::fatal(
                                 SlimTransportError::Session(e.to_string()),
                                 "session recv error",
                             ));
                         }
-                        None => return Err(WorkerQuitReason::TransportClosed),
+                        None => {
+                            debug!(%dst, "SLIM session closed");
+                            return Err(WorkerQuitReason::TransportClosed);
+                        }
                     }
                 }
             }
