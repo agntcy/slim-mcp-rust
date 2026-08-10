@@ -15,25 +15,25 @@ use std::sync::Arc;
 
 use agntcy_slim_mcp_transport::{IdentityConfig, SlimServerListener};
 use clap::{Parser, ValueEnum};
-use rmcp::{
-    ErrorData, ServerHandler,
-    handler::server::{router::prompt::PromptRouter, router::tool::ToolRouter, wrapper::Parameters},
-    model::{
-        ListResourcesResult, PaginatedRequestParams,
-        PromptMessage, ProtocolVersion, ReadResourceRequestParams, ReadResourceResult,
-        ReadResourceResponse, Resource, ResourceContents, Role, ServerCapabilities, ServerInfo,
-        SubscriptionFilter,
-    },
-    prompt, prompt_handler, prompt_router,
-    service::RequestContext,
-    service::SubscriptionContext,
-    serve_server,
-    tool, tool_handler, tool_router,
-};
 use rmcp::service::RoleServer;
 use rmcp::transport::{
     StreamableHttpServerConfig, StreamableHttpService,
     streamable_http_server::session::local::LocalSessionManager,
+};
+use rmcp::{
+    ErrorData, ServerHandler,
+    handler::server::{
+        router::prompt::PromptRouter, router::tool::ToolRouter, wrapper::Parameters,
+    },
+    model::{
+        ListResourcesResult, PaginatedRequestParams, PromptMessage, ProtocolVersion,
+        ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
+        ResourceContents, Role, ServerCapabilities, ServerInfo, SubscriptionFilter,
+    },
+    prompt, prompt_handler, prompt_router, serve_server,
+    service::RequestContext,
+    service::SubscriptionContext,
+    tool, tool_handler, tool_router,
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -90,9 +90,21 @@ enum TransportMode {
 // ── Static resources ──────────────────────────────────────────────────────────
 
 const RESOURCES: &[(&str, &str, &str)] = &[
-    ("greeting", "file:///greeting.txt", "Hello! This is a sample text resource."),
-    ("help", "file:///help.txt", "This server provides a few sample text resources for testing."),
-    ("about", "file:///about.txt", "This is the simple-resource MCP server implementation."),
+    (
+        "greeting",
+        "file:///greeting.txt",
+        "Hello! This is a sample text resource.",
+    ),
+    (
+        "help",
+        "file:///help.txt",
+        "This server provides a few sample text resources for testing.",
+    ),
+    (
+        "about",
+        "file:///about.txt",
+        "This is the simple-resource MCP server implementation.",
+    ),
 ];
 
 // ── Server handler ────────────────────────────────────────────────────────────
@@ -125,7 +137,10 @@ impl McpServer {
     #[tool(description = "Fetches a website and returns its content")]
     async fn fetch(&self, Parameters(FetchParams { url }): Parameters<FetchParams>) -> String {
         match reqwest::get(&url).await {
-            Ok(resp) => resp.text().await.unwrap_or_else(|e| format!("error reading body: {e}")),
+            Ok(resp) => resp
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("error reading body: {e}")),
             Err(e) => format!("error fetching {url}: {e}"),
         }
     }
@@ -144,7 +159,10 @@ struct SimplePromptParams {
 #[prompt_router]
 impl McpServer {
     #[prompt(description = "A simple prompt that can take optional context and topic arguments")]
-    fn simple(&self, Parameters(SimplePromptParams { context, topic }): Parameters<SimplePromptParams>) -> Vec<PromptMessage> {
+    fn simple(
+        &self,
+        Parameters(SimplePromptParams { context, topic }): Parameters<SimplePromptParams>,
+    ) -> Vec<PromptMessage> {
         let mut messages = Vec::new();
         if let Some(ctx) = context {
             messages.push(PromptMessage::new_text(Role::User, ctx));
@@ -171,7 +189,8 @@ impl ServerHandler for McpServer {
                 .enable_resources_subscribe()
                 .enable_prompts()
                 .build(),
-        ).with_protocol_version(ProtocolVersion::V_2026_07_28)
+        )
+        .with_protocol_version(ProtocolVersion::V_2026_07_28)
     }
 
     async fn list_resources(
@@ -180,9 +199,10 @@ impl ServerHandler for McpServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListResourcesResult, ErrorData> {
         Ok(ListResourcesResult::with_all_items(
-            RESOURCES.iter().map(|(name, uri, _)| {
-                Resource::new(*uri, *name).with_mime_type("text/plain")
-            }).collect(),
+            RESOURCES
+                .iter()
+                .map(|(name, uri, _)| Resource::new(*uri, *name).with_mime_type("text/plain"))
+                .collect(),
         ))
     }
 
@@ -194,7 +214,8 @@ impl ServerHandler for McpServer {
         match RESOURCES.iter().find(|(_, uri, _)| *uri == request.uri) {
             Some((_, uri, text)) => Ok(ReadResourceResult::new(vec![
                 ResourceContents::text(*text, *uri).with_mime_type("text/plain"),
-            ]).into()),
+            ])
+            .into()),
             None => Err(ErrorData::resource_not_found(
                 format!("resource not found: {}", request.uri),
                 None,
@@ -241,13 +262,18 @@ async fn run_http(port: u16) {
         .await
         .expect("failed to bind TCP listener");
     info!("MCP server listening on http://{addr}/mcp");
-    axum::serve(listener, router).await.expect("HTTP server error");
+    axum::serve(listener, router)
+        .await
+        .expect("HTTP server error");
 }
 
 async fn run_slim(args: Args) {
     let local_name = match ProtoName::parse_name(&args.local_name) {
         Ok(n) => n,
-        Err(e) => { error!("invalid --local-name: {e}"); return; }
+        Err(e) => {
+            error!("invalid --local-name: {e}");
+            return;
+        }
     };
 
     let identity = if let Some(socket_path) = &args.spire_socket_path {
@@ -274,7 +300,9 @@ async fn run_slim(args: Args) {
     client_config.tls_setting.insecure = true;
     let svc_config = ServiceConfiguration::new().with_dataplane_client(vec![client_config]);
     let svc_id = ID::new_with_str("slim/0").unwrap();
-    let service = svc_config.build_server(svc_id).expect("failed to build service");
+    let service = svc_config
+        .build_server(svc_id)
+        .expect("failed to build service");
 
     let (auth_provider, auth_verifier) = identity
         .into_auth_pair()

@@ -4,7 +4,9 @@
 use std::sync::Arc;
 
 use rmcp::service::RoleClient;
-use rmcp::transport::worker::{Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport};
+use rmcp::transport::worker::{
+    Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport,
+};
 use slim_datapath::api::{ProtoName, ProtoSessionType};
 use slim_session::SessionConfig;
 
@@ -57,11 +59,12 @@ impl Worker for SlimClientWorker {
         cfg
     }
 
-    async fn run(
-        self,
-        mut ctx: WorkerContext<Self>,
-    ) -> Result<(), WorkerQuitReason<Self::Error>> {
-        let SlimClientConfig { app, destination, session_config } = self.config;
+    async fn run(self, mut ctx: WorkerContext<Self>) -> Result<(), WorkerQuitReason<Self::Error>> {
+        let SlimClientConfig {
+            app,
+            destination,
+            session_config,
+        } = self.config;
 
         let cfg = session_config.unwrap_or(SessionConfig {
             session_type: ProtoSessionType::PointToPoint,
@@ -73,19 +76,27 @@ impl Worker for SlimClientWorker {
         });
 
         debug!(%destination, "creating SLIM session");
-        let (session_ctx, completion) = app
-            .create_session(cfg, destination, None)
-            .await
-            .map_err(|e| WorkerQuitReason::fatal(SlimTransportError::Session(e.to_string()), "create_session"))?;
+        let (session_ctx, completion) =
+            app.create_session(cfg, destination, None)
+                .await
+                .map_err(|e| {
+                    WorkerQuitReason::fatal(
+                        SlimTransportError::Session(e.to_string()),
+                        "create_session",
+                    )
+                })?;
 
-        completion
-            .await
-            .map_err(|e| WorkerQuitReason::fatal(SlimTransportError::Session(e.to_string()), "session completion"))?;
+        completion.await.map_err(|e| {
+            WorkerQuitReason::fatal(
+                SlimTransportError::Session(e.to_string()),
+                "session completion",
+            )
+        })?;
 
         let (session_weak, mut session_rx) = session_ctx.into_parts();
-        let session = session_weak
-            .upgrade()
-            .ok_or_else(|| WorkerQuitReason::fatal(SlimTransportError::NoSession, "session upgrade"))?;
+        let session = session_weak.upgrade().ok_or_else(|| {
+            WorkerQuitReason::fatal(SlimTransportError::NoSession, "session upgrade")
+        })?;
         let dst = session.dst().clone();
         debug!(%dst, "SLIM session established");
 

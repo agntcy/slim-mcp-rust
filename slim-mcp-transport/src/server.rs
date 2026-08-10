@@ -4,7 +4,9 @@
 use std::sync::Arc;
 
 use rmcp::service::RoleServer;
-use rmcp::transport::worker::{Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport};
+use rmcp::transport::worker::{
+    Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport,
+};
 use slim_session::SessionError;
 use slim_session::context::SessionContext;
 use slim_session::notification::Notification;
@@ -85,14 +87,10 @@ impl Worker for SlimServerWorker {
         cfg
     }
 
-    async fn run(
-        self,
-        mut ctx: WorkerContext<Self>,
-    ) -> Result<(), WorkerQuitReason<Self::Error>> {
-        let session = self
-            .ctx
-            .session_arc()
-            .ok_or_else(|| WorkerQuitReason::fatal(SlimTransportError::NoSession, "session upgrade"))?;
+    async fn run(self, mut ctx: WorkerContext<Self>) -> Result<(), WorkerQuitReason<Self::Error>> {
+        let session = self.ctx.session_arc().ok_or_else(|| {
+            WorkerQuitReason::fatal(SlimTransportError::NoSession, "session upgrade")
+        })?;
         let dst = session.dst().clone();
         debug!(%dst, "SLIM server session started");
 

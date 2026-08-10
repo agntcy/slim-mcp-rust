@@ -16,14 +16,12 @@ use std::sync::Arc;
 
 use agntcy_slim_mcp_transport::{IdentityConfig, SlimClientConfig, SlimClientWorker};
 use clap::Parser;
-use rmcp::{
-    model::{
-        CallToolRequestParams, ClientInfo, GetPromptRequestParams,
-        ProtocolVersion, ReadResourceRequestParams, SubscriptionFilter,
-    },
-};
 use rmcp::ClientLifecycleMode;
 use rmcp::ClientServiceExt;
+use rmcp::model::{
+    CallToolRequestParams, ClientInfo, GetPromptRequestParams, ProtocolVersion,
+    ReadResourceRequestParams, SubscriptionFilter,
+};
 use slim_config::client::ClientConfig;
 use slim_config::component::id::ID;
 use slim_datapath::api::ProtoName;
@@ -70,11 +68,17 @@ async fn main() {
 
     let local_name = match ProtoName::parse_name(&args.local_name) {
         Ok(n) => n,
-        Err(e) => { error!("invalid --local-name: {e}"); return; }
+        Err(e) => {
+            error!("invalid --local-name: {e}");
+            return;
+        }
     };
     let server_name = match ProtoName::parse_name(&args.server_name) {
         Ok(n) => n,
-        Err(e) => { error!("invalid --server-name: {e}"); return; }
+        Err(e) => {
+            error!("invalid --server-name: {e}");
+            return;
+        }
     };
 
     let identity = if let Some(socket_path) = &args.spire_socket_path {
@@ -102,7 +106,9 @@ async fn main() {
     client_config.tls_setting.insecure = true;
     let svc_config = ServiceConfiguration::new().with_dataplane_client(vec![client_config]);
     let svc_id = ID::new_with_str("slim/0").unwrap();
-    let service = svc_config.build_server(svc_id).expect("failed to build service");
+    let service = svc_config
+        .build_server(svc_id)
+        .expect("failed to build service");
 
     // Create and subscribe the app — the caller's responsibility before handing
     // it to the transport.
@@ -136,15 +142,21 @@ async fn main() {
 
     let client_info = ClientInfo::default();
     //).with_protocol_version(ProtocolVersion::V_2026_07_28);
-    let client = match client_info.serve_with_lifecycle(
+    let client = match client_info
+        .serve_with_lifecycle(
             transport,
             ClientLifecycleMode::Auto {
                 preferred_versions: vec![ProtocolVersion::V_2026_07_28],
                 legacy_version: Some(ProtocolVersion::V_2025_11_25),
-            }
-        ).await {
+            },
+        )
+        .await
+    {
         Ok(c) => c,
-        Err(e) => { error!("failed to connect: {e}"); return; }
+        Err(e) => {
+            error!("failed to connect: {e}");
+            return;
+        }
     };
 
     let server_info = client.peer_info();
@@ -153,20 +165,39 @@ async fn main() {
     // list_tools
     let tools = match client.list_tools(Default::default()).await {
         Ok(result) => result.tools,
-        Err(e) => { error!("list_tools failed: {e}"); let _ = client.cancel().await; return; }
+        Err(e) => {
+            error!("list_tools failed: {e}");
+            let _ = client.cancel().await;
+            return;
+        }
     };
     println!("=== list_tools ({} tool(s)) ===", tools.len());
     for tool in &tools {
-        println!("  - {} : {}", tool.name, tool.description.as_deref().unwrap_or(""));
+        println!(
+            "  - {} : {}",
+            tool.name,
+            tool.description.as_deref().unwrap_or("")
+        );
     }
 
     // call_tool "fetch"
-    let fetch_result = match client.call_tool(
-        CallToolRequestParams::new("fetch")
-            .with_arguments(serde_json::json!({"url": "https://example.com"}).as_object().unwrap().clone()),
-    ).await {
+    let fetch_result = match client
+        .call_tool(
+            CallToolRequestParams::new("fetch").with_arguments(
+                serde_json::json!({"url": "https://example.com"})
+                    .as_object()
+                    .unwrap()
+                    .clone(),
+            ),
+        )
+        .await
+    {
         Ok(result) => result,
-        Err(e) => { error!("call_tool failed: {e}"); let _ = client.cancel().await; return; }
+        Err(e) => {
+            error!("call_tool failed: {e}");
+            let _ = client.cancel().await;
+            return;
+        }
     };
     println!("=== call_tool(fetch) ===");
     for item in &fetch_result.content {
@@ -176,7 +207,11 @@ async fn main() {
     // list_resources
     let resources = match client.list_resources(Default::default()).await {
         Ok(result) => result.resources,
-        Err(e) => { error!("list_resources failed: {e}"); let _ = client.cancel().await; return; }
+        Err(e) => {
+            error!("list_resources failed: {e}");
+            let _ = client.cancel().await;
+            return;
+        }
     };
     println!("=== list_resources ({} resource(s)) ===", resources.len());
     for r in &resources {
@@ -184,19 +219,36 @@ async fn main() {
     }
 
     // subscribe_resource
-    let _subscription = match client.listen(
-        SubscriptionFilter::builder()
-            .resource_subscription("file:///greeting.txt")
-            .build(),
-    ).await {
-        Ok(sub) => { println!("=== subscribe(file:///greeting.txt) ok ==="); sub }
-        Err(e) => { error!("subscribe failed: {e}"); let _ = client.cancel().await; return; }
+    let _subscription = match client
+        .listen(
+            SubscriptionFilter::builder()
+                .resource_subscription("file:///greeting.txt")
+                .build(),
+        )
+        .await
+    {
+        Ok(sub) => {
+            println!("=== subscribe(file:///greeting.txt) ok ===");
+            sub
+        }
+        Err(e) => {
+            error!("subscribe failed: {e}");
+            let _ = client.cancel().await;
+            return;
+        }
     };
 
     // read_resource
-    let read_result = match client.read_resource(ReadResourceRequestParams::new("file:///greeting.txt")).await {
+    let read_result = match client
+        .read_resource(ReadResourceRequestParams::new("file:///greeting.txt"))
+        .await
+    {
         Ok(result) => result,
-        Err(e) => { error!("read_resource failed: {e}"); let _ = client.cancel().await; return; }
+        Err(e) => {
+            error!("read_resource failed: {e}");
+            let _ = client.cancel().await;
+            return;
+        }
     };
     println!("=== read_resource(file:///greeting.txt) ===");
     for content in &read_result.contents {
@@ -208,11 +260,19 @@ async fn main() {
     // list_prompts
     let prompts = match client.list_prompts(Default::default()).await {
         Ok(result) => result.prompts,
-        Err(e) => { error!("list_prompts failed: {e}"); let _ = client.cancel().await; return; }
+        Err(e) => {
+            error!("list_prompts failed: {e}");
+            let _ = client.cancel().await;
+            return;
+        }
     };
     println!("=== list_prompts ({} prompt(s)) ===", prompts.len());
     for p in &prompts {
-        println!("  - {} : {}", p.name, p.description.as_deref().unwrap_or(""));
+        println!(
+            "  - {} : {}",
+            p.name,
+            p.description.as_deref().unwrap_or("")
+        );
     }
 
     // get_prompt
@@ -223,7 +283,10 @@ async fn main() {
         Ok(result) => result,
         Err(e) => { error!("get_prompt failed: {e}"); let _ = client.cancel().await; return; }
     };
-    println!("=== get_prompt(simple) ({} message(s)) ===", prompt_result.messages.len());
+    println!(
+        "=== get_prompt(simple) ({} message(s)) ===",
+        prompt_result.messages.len()
+    );
     for msg in &prompt_result.messages {
         println!("  [{:?}] {:?}", msg.role, msg.content);
     }

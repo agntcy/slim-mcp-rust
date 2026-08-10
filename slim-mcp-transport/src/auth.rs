@@ -10,10 +10,7 @@ use crate::error::SlimTransportError;
 #[derive(Clone)]
 pub enum IdentityConfig {
     /// Shared secret (pre-shared key) authentication.
-    SharedSecret {
-        identity: String,
-        secret: String,
-    },
+    SharedSecret { identity: String, secret: String },
     /// SPIRE-based mTLS/JWT authentication.
     #[cfg(all(not(target_family = "windows"), not(target_arch = "wasm32")))]
     Spire {
@@ -33,9 +30,7 @@ impl IdentityConfig {
     }
 
     /// Build an `(AuthProvider, AuthVerifier)` pair from this config.
-    pub async fn into_auth_pair(
-        self,
-    ) -> Result<(AuthProvider, AuthVerifier), SlimTransportError> {
+    pub async fn into_auth_pair(self) -> Result<(AuthProvider, AuthVerifier), SlimTransportError> {
         match self {
             Self::SharedSecret { identity, secret } => {
                 let provider = SharedSecret::new(&identity, &secret)
@@ -69,11 +64,15 @@ impl IdentityConfig {
                     pb = pb.with_jwt_audiences(jwt_audiences.clone());
                     vb = vb.with_jwt_audiences(jwt_audiences);
                 }
-                let mut pm = pb.build().map_err(|e| SlimTransportError::Auth(e.to_string()))?;
+                let mut pm = pb
+                    .build()
+                    .map_err(|e| SlimTransportError::Auth(e.to_string()))?;
                 pm.initialize()
                     .await
                     .map_err(|e| SlimTransportError::Auth(e.to_string()))?;
-                let mut vm = vb.build().map_err(|e| SlimTransportError::Auth(e.to_string()))?;
+                let mut vm = vb
+                    .build()
+                    .map_err(|e| SlimTransportError::Auth(e.to_string()))?;
                 vm.initialize()
                     .await
                     .map_err(|e| SlimTransportError::Auth(e.to_string()))?;

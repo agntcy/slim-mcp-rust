@@ -3,7 +3,9 @@
 
 use std::sync::Arc;
 
-use agntcy_slim_mcp_transport::{IdentityConfig, SlimClientConfig, SlimClientWorker, SlimServerListener};
+use agntcy_slim_mcp_transport::{
+    IdentityConfig, SlimClientConfig, SlimClientWorker, SlimServerListener,
+};
 use rmcp::{ServerHandler, serve_client, serve_server};
 use slim_config::component::id::ID;
 use slim_datapath::api::{ProtoName, ProtoSessionType};
@@ -27,8 +29,11 @@ async fn mcp_list_tools_roundtrip_over_slim() {
     let auth = IdentityConfig::shared_secret("test", "test-shared-secret-value-0123456789abcdef");
 
     // Create and subscribe the server app.
-    let (server_auth_provider, server_auth_verifier) =
-        auth.clone().into_auth_pair().await.expect("server auth failed");
+    let (server_auth_provider, server_auth_verifier) = auth
+        .clone()
+        .into_auth_pair()
+        .await
+        .expect("server auth failed");
     let (server_app, server_rx) = service
         .create_app(&server_name, server_auth_provider, server_auth_verifier)
         .expect("server create_app failed");
@@ -71,10 +76,13 @@ async fn mcp_list_tools_roundtrip_over_slim() {
 
     // Accept the session on the server side concurrently with serving the client.
     let server_task = tokio::spawn(async move {
-        let transport = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            async { listener.accept().await.expect("accept returned None").expect("accept returned error") },
-        )
+        let transport = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            listener
+                .accept()
+                .await
+                .expect("accept returned None")
+                .expect("accept returned error")
+        })
         .await
         .expect("server accept timed out");
 
@@ -101,8 +109,15 @@ async fn mcp_list_tools_roundtrip_over_slim() {
     .expect("list_tools timed out")
     .expect("list_tools failed");
 
-    assert!(result.tools.is_empty(), "expected no tools from MinimalServer");
+    assert!(
+        result.tools.is_empty(),
+        "expected no tools from MinimalServer"
+    );
 
     client.cancellation_token().cancel();
-    server_task.await.expect("server task panicked").cancellation_token().cancel();
+    server_task
+        .await
+        .expect("server task panicked")
+        .cancellation_token()
+        .cancel();
 }
