@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.5...slim-mcp-proxy-v0.2.6) - 2026-08-14
+
+### Other
+
+- *(deps)* upgrade SLIM to 2.0.0 and Rust MCP SDK (rmcp) to 3.1.1 ([#45](https://github.com/agntcy/slim-mcp-rust/pull/45))
+
 ## [0.2.5](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.4...slim-mcp-proxy-v0.2.5) - 2026-04-07
 
 ### Added
