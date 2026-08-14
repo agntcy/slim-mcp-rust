@@ -20,11 +20,22 @@ tasks:
         docker run -it -v ./slim-server-config.yaml:/config.yaml -p 46357:46357 ghcr.io/agntcy/slim:1.3.0 /slim --config /config.yaml
 
   mcp-proxy:test:run-mcp-server:
-    desc: run mcp server using SSE transport
+    desc: run MCP server over HTTP (compatible with mcp-proxy)
+    dir: "{{.TASKFILE_DIR}}/.."
     cmds:
       - |
-        cd examples/local-test/mcp-server/
-        uv run main.py --port 8000
+        cargo run -p agntcy-slim-mcp-transport --example mcp-slim-server -- \
+          --transport http --port 8000
+
+  mcp-proxy:test:run-mcp-server-slim:
+    desc: run MCP server natively over SLIM (direct client↔server, no proxy)
+    dir: "{{.TASKFILE_DIR}}/.."
+    cmds:
+      - |
+        cargo run -p agntcy-slim-mcp-transport --example mcp-slim-server -- \
+          --transport slim \
+          --local-name org/mcp/server \
+          --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:run:
     desc: run mcp proxy
@@ -32,18 +43,18 @@ tasks:
     cmds:
       - |
         cargo run -- --config config/mcp-proxy-config.yaml \
-          --svc-name slim/0 --name org/mcp/proxy \
+          --svc-name slim/0 --name org/mcp/server \
           --mcp-server http://localhost:8000/mcp \
           --secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:test:run-mcp-client:
-    desc: run a simple MCP client that use SLIM as transport protocol
+    desc: run a simple MCP client that uses SLIM as transport protocol
+    dir: "{{.TASKFILE_DIR}}/.."
     cmds:
       - |
-        cd examples/local-test/mcp-slim-client
-        uv run main.py \
+        cargo run -p agntcy-slim-mcp-transport --example mcp-slim-client -- \
           --local-name org/mcp/client1 \
-          --proxy-name org/mcp/proxy \
+          --server-name org/mcp/server \
           --shared-secret secretsecretsecretsecretsecretsecret
 
   mcp-proxy:build:strip:
