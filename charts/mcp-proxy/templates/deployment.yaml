@@ -54,6 +54,14 @@ spec:
           {{- end }}
           - --mcp-server
           - {{ .Values.proxy.mcpServer.url | quote }}
+          {{- if .Values.proxy.mcpServer.auth.enabled }}
+          - --mcp-auth-token
+          {{- if .Values.proxy.mcpServer.auth.existingSecret }}
+          - $(MCP_AUTH_TOKEN)
+          {{- else }}
+          - {{ .Values.proxy.mcpServer.auth.value | quote }}
+          {{- end }}
+          {{- end }}
           {{- if .Values.proxy.auth.sharedSecret.enabled }}
           - --secret
           {{- if .Values.proxy.auth.sharedSecret.existingSecret }}
@@ -76,13 +84,9 @@ spec:
           - {{ .Values.proxy.auth.spire.jwtAudiences | quote }}
           {{- end }}
           {{- end }}
-          {{- if and .Values.proxy.auth.sharedSecret.enabled .Values.proxy.auth.sharedSecret.existingSecret }}
+          {{- with .Values.env }}
           env:
-          - name: SHARED_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ .Values.proxy.auth.sharedSecret.existingSecret.name }}
-                key: {{ .Values.proxy.auth.sharedSecret.existingSecret.key }}
+            {{- toYaml . | nindent 10 }}
           {{- end }}
           {{- with .Values.resources }}
           resources:
