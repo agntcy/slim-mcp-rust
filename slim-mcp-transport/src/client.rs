@@ -1,8 +1,9 @@
 // Copyright AGNTCY Contributors (https://github.com/agntcy)
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
+use rmcp::model::{ClientRequest, ErrorCode, ErrorData, JsonRpcError, JsonRpcMessage};
 use rmcp::service::RoleClient;
 use rmcp::transport::worker::{
     Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport,
@@ -12,6 +13,7 @@ use slim_session::SessionConfig;
 
 use crate::SlimApp;
 use crate::error::SlimTransportError;
+use crate::verifier::{McpRequestContext, McpVerifier, VerificationError};
 use tracing::{debug, warn};
 
 /// A `Transport<RoleClient>` backed by a single outgoing SLIM session.
@@ -28,11 +30,22 @@ pub struct SlimClientConfig {
 /// Worker driving a single client-side SLIM session as an MCP transport.
 pub struct SlimClientWorker {
     config: SlimClientConfig,
+    verifier: Option<(Arc<dyn McpVerifier>, Duration)>,
 }
 
 impl SlimClientWorker {
     pub fn new(config: SlimClientConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            verifier: None,
+        }
+    }
+
+    /// Authorize each `tools/call` before publishing it. Other MCP methods keep
+    /// their existing behavior. Existing callers remain unguarded unless opted in.
+    pub fn with_verifier(mut self, verifier: Arc<dyn McpVerifier>, timeout: Duration) -> Self {
+        self.verifier = Some((verifier, timeout));
+        self
     }
 
     /// Convenience: spawn the transport immediately.
@@ -60,6 +73,7 @@ impl Worker for SlimClientWorker {
     }
 
     async fn run(self, mut ctx: WorkerContext<Self>) -> Result<(), WorkerQuitReason<Self::Error>> {
+        let verifier = self.verifier;
         let SlimClientConfig {
             app,
             destination,
@@ -109,7 +123,52 @@ impl Worker for SlimClientWorker {
                 send_req = ctx.from_handler_rx.recv() => {
                     let req = send_req
                         .ok_or(WorkerQuitReason::HandlerTerminated)?;
-                    debug!(%dst, message = ?req.message, "sending message to SLIM");
+                    if req.responder.is_closed() {
+                        continue;
+                    }
+                    if let (Some((verifier, budget)), JsonRpcMessage::Request(request)) = (&verifier, &req.message)
+                        && let ClientRequest::CallToolRequest(call) = &request.request
+                    {
+                        let context = McpRequestContext {
+                            evaluation_id: uuid::Uuid::new_v4(),
+                            request_id: &request.id,
+                            destination: &dst,
+                            tool_name: &call.params.name,
+                            metadata: call.params.meta.as_ref(),
+                            arguments: verifier.wants_content().then_some(call.params.arguments.as_ref()).flatten(),
+                        };
+                        let deadline = tokio::time::Instant::now() + *budget;
+                        let result = tokio::select! {
+                            biased;
+                            _ = ctx.cancellation_token.cancelled() => return Err(WorkerQuitReason::Cancelled),
+                            result = tokio::time::timeout_at(deadline, verifier.verify_request(&context)) => {
+                                result.unwrap_or(Err(VerificationError::Timeout))
+                            }
+                        };
+                        let result = if tokio::time::Instant::now() >= deadline {
+                            Err(VerificationError::Timeout)
+                        } else {
+                            result
+                        };
+                        if let Err(error) = result {
+                            let response = JsonRpcMessage::Error(JsonRpcError::new(
+                                Some(request.id.clone()),
+                                ErrorData::new(ErrorCode(-32001), error.to_string(), None),
+                            ));
+                            if req.responder.send(Ok(())).is_ok() {
+                                ctx.send_to_handler(response).await?;
+                            }
+                            continue;
+                        }
+                    }
+                    // A canceled send must not be resumed by a late approval.
+                    if ctx.cancellation_token.is_cancelled() {
+                        return Err(WorkerQuitReason::Cancelled);
+                    }
+                    if req.responder.is_closed() {
+                        continue;
+                    }
+                    debug!(%dst, "sending message to SLIM");
                     let bytes = serde_json::to_vec(&req.message)
                         .map_err(|e| WorkerQuitReason::fatal(SlimTransportError::Serde(e), "serialize outgoing"))?;
                     session

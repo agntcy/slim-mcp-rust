@@ -5,6 +5,7 @@ pub mod auth;
 pub mod client;
 pub mod error;
 pub mod server;
+pub mod verifier;
 
 use slim_auth::auth_provider::{AuthProvider, AuthVerifier};
 use slim_service::app::App;
@@ -16,3 +17,4 @@ pub use auth::IdentityConfig;
 pub use client::{SlimClientConfig, SlimClientTransport, SlimClientWorker};
 pub use error::SlimTransportError;
 pub use server::{SlimServerListener, SlimServerTransport, SlimServerWorker};
+pub use verifier::{McpRequestContext, McpVerifier, VerificationError};

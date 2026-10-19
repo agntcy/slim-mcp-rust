@@ -1,5 +1,8 @@
 # slim-mcp-rust
 
+The `feat/mcp-request-verifier` branch includes an experimental
+[per-tool-call sender verifier](slim-mcp-transport/README.md).
+
 This repo contains Rust integrations between SLIM and MCP.
 
 Current integrations:
