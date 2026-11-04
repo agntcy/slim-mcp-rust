@@ -19,8 +19,8 @@ use clap::Parser;
 use rmcp::ClientLifecycleMode;
 use rmcp::ClientServiceExt;
 use rmcp::model::{
-    CallToolRequestParams, ClientConfig as RmcpClientConfig, GetPromptRequestParams, ProtocolVersion,
-    ReadResourceRequestParams, SubscriptionFilter,
+    CallToolRequestParams, ClientConfig as RmcpClientConfig, GetPromptRequestParams,
+    ProtocolVersion, ReadResourceRequestParams, SubscriptionFilter,
 };
 use slim_config::client::ClientConfig;
 use slim_config::component::id::ID;
