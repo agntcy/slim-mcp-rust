@@ -28,7 +28,7 @@ use rmcp::{
     model::{
         ListResourcesResult, PaginatedRequestParams, PromptMessage, ProtocolVersion,
         ReadResourceRequestParams, ReadResourceResponse, ReadResourceResult, Resource,
-        ResourceContents, Role, ServerCapabilities, ServerInfo, SubscriptionFilter,
+        ResourceContents, Role, ServerCapabilities, ServerConfig, SubscriptionFilter,
     },
     prompt, prompt_handler, prompt_router, serve_server,
     service::RequestContext,
@@ -181,8 +181,8 @@ impl McpServer {
 #[tool_handler(router = self.tool_router)]
 #[prompt_handler(router = self.prompt_router)]
 impl ServerHandler for McpServer {
-    fn get_info(&self) -> ServerInfo {
-        ServerInfo::new(
+    fn get_info(&self) -> ServerConfig {
+        ServerConfig::new(
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
