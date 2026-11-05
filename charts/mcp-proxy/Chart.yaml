@@ -6,7 +6,7 @@ type: application
 
 version: 0.1.4
 
-appVersion: "0.2.5"
+appVersion: "0.3.1"
 
 keywords:
   - mcp
@@ -20,6 +20,6 @@ maintainers:
 # SLIM dependency - Helm will automatically install SLIM when you install this chart
 dependencies:
   - name: slim
-    version: "v1.3.0"
+    version: "v2.9.2"
     repository: "oci://ghcr.io/agntcy/slim/helm"
     condition: slim.enabled
