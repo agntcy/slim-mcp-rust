@@ -27,6 +27,7 @@ esac
 DEBIAN_FRONTEND=noninteractive \
     apt-get update && \
     apt-get install --no-install-recommends -y \
+        cmake \
         curl \
         file \
         make \

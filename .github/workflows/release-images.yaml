@@ -80,6 +80,7 @@ jobs:
     with:
       bake-targets: ${{ matrix.target }}
       image-tag: ${{ needs.prepare-build.outputs.image-tag }}
+      push: true
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
 
