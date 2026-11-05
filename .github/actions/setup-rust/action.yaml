@@ -57,9 +57,20 @@ runs:
         cache-bin: false # cache-bin has a bug at the swatinem cache level, if it's enabled, it will cause the bin cache to be cleared
         cache-directories: ${{ inputs.cache-directories }}
 
+    # The rust cache restores ~/.cargo/bin; download only when it lacks
+    # cargo-binstall, since GitHub release downloads can fail with 504.
+    - name: Check cargo-binstall
+      id: binstall
+      shell: bash
+      run: |
+        if command -v cargo-binstall >/dev/null; then
+          echo "found=true" >> "$GITHUB_OUTPUT"
+        fi
+
     # Prebuilt, so the tasks' `cargo binstall` never compiles it. Building it
     # from source needs a newer rustc than rust-toolchain.toml pins.
     - name: Install cargo-binstall
+      if: steps.binstall.outputs.found != 'true'
       uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
       with:
         tool: cargo-binstall

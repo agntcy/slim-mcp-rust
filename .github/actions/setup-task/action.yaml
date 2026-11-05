@@ -3,10 +3,10 @@
 
 ---
 name: Setup Task with Cache
-description: Setup Task (go-task/task) via arduino/setup-task
+description: Setup Task (go-task/task) via go-task/setup-task, cached
 inputs:
   version:
-    description: 'Task version to install (e.g., "3.39.2", "latest")'
+    description: 'Exact Task version to install (e.g. "3.48.0")'
     required: false
     default: "3.48.0"
   github-token:
@@ -22,8 +22,25 @@ outputs:
 runs:
   using: "composite"
   steps:
+    # setup-task looks in the runner's tool cache before downloading, so a
+    # restored copy skips the GitHub release download, which can fail with 504.
+    - name: Restore Task
+      id: restore
+      uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ runner.tool_cache }}/task/${{ inputs.version }}
+        key: task-${{ inputs.version }}-${{ runner.os }}-${{ runner.arch }}
+
     - name: Setup Task
       uses: go-task/setup-task@a00fbb05ce67b35648be3c78cbc9fd85354c757e # v2.2.0
       with:
         version: ${{ inputs.version }}
         repo-token: ${{ inputs.github-token }}
+
+    # Only main saves, like the Rust caches.
+    - name: Save Task
+      if: steps.restore.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+      with:
+        path: ${{ runner.tool_cache }}/task/${{ inputs.version }}
+        key: ${{ steps.restore.outputs.cache-primary-key }}
