@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.3.0...slim-mcp-proxy-v0.3.1) - 2026-11-05
+
+### Fixed
+
+- *(mcp-proxy)* install cmake in the image build stage ([#66](https://github.com/agntcy/slim-mcp-rust/pull/66))
+
 ## [0.3.0](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.2.5...slim-mcp-proxy-v0.3.0) - 2026-11-05
 
 ### Added
