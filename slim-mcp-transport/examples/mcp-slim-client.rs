@@ -19,8 +19,8 @@ use clap::Parser;
 use rmcp::ClientLifecycleMode;
 use rmcp::ClientServiceExt;
 use rmcp::model::{
-    CallToolRequestParams, ClientInfo, GetPromptRequestParams, ProtocolVersion,
-    ReadResourceRequestParams, SubscriptionFilter,
+    CallToolRequestParams, ClientConfig as RmcpClientConfig, GetPromptRequestParams,
+    ProtocolVersion, ReadResourceRequestParams, SubscriptionFilter,
 };
 use slim_config::client::ClientConfig;
 use slim_config::component::id::ID;
@@ -140,7 +140,7 @@ async fn main() {
     })
     .into_transport();
 
-    let client_info = ClientInfo::default();
+    let client_info = RmcpClientConfig::default();
     //).with_protocol_version(ProtocolVersion::V_2026_07_28);
     let client = match client_info
         .serve_with_lifecycle(
