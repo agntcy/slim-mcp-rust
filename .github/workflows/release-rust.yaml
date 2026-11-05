@@ -27,6 +27,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           workspace: .
+          # Keep release-plz off the lint job's cache key; both save from main.
+          cache-key-suffix: "-release-plz"
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:
@@ -56,6 +58,8 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           workspace: .
+          # Keep release-plz off the lint job's cache key; both save from main.
+          cache-key-suffix: "-release-plz"
       - name: Run release-plz
         uses: release-plz/action@v0.5
         with:

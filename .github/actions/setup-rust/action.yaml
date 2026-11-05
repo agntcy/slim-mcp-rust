@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ---
-
 name: Setup Environment
 description: setup environment to build/test/lint rust applications
 inputs:
@@ -14,38 +13,111 @@ inputs:
     description: 'Cargo workspace to cache'
     required: false
     default: '.'
+  cache-directories:
+    description: 'Additional cache directories (whitespace-separated)'
+    required: false
+    default: |
+      ~/.cargo/bin
+      ~/.cargo/.crates.toml
+      ~/.cargo/.crates2.json
+  cache-enabled:
+    description: 'Enable rust cache'
+    required: false
+    default: 'true'
+  cache-key-suffix:
+    description: >-
+      Optional suffix appended to the cache shared-key. Use it to give jobs that
+      build DIFFERENT artifacts (e.g. cross-compiled targets or a specific
+      profile) their own cache, so they do not restore/overwrite the shared
+      host cache. Leave empty for host jobs that should share one cache.
+    required: false
+    default: ''
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     - name: Setup Rust
       id: setup-rust
-      uses: actions-rust-lang/setup-rust-toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       with:
         components: rustc, clippy, rustfmt
-        rustflags: ""
+        rustflags: ''
+        cache: ${{ inputs.cache-enabled }}
         cache-workspaces: ${{ inputs.workspace }}
         cache-on-failure: false
-        cache-shared-key: ${{runner.os}}-rust-${{hashFiles('**/Cargo.lock')}}
-        cache-all-crates: trus
+        # Only main writes the cache; pull requests and the merge queue
+        # restore from it. A cache entry is scoped to the ref that created it,
+        # so one saved by a pull request is never read by any other ref.
+        cache-save-if: ${{ github.ref == 'refs/heads/main' }}
+        # Keep the shared key stable (no Cargo.lock hash). rust-cache appends
+        # the lockfile and toolchain hashes to the full key and restores by
+        # this prefix, so a dependency change warm-starts from the previous
+        # cache instead of building from scratch.
+        cache-shared-key: ${{ format('{0}-rust{1}', runner.os, inputs.cache-key-suffix) }}
+        cache-all-crates: true
+        cache-bin: false # cache-bin has a bug at the swatinem cache level, if it's enabled, it will cause the bin cache to be cleared
+        cache-directories: ${{ inputs.cache-directories }}
+
+    # Prebuilt, so the tasks' `cargo binstall` never compiles it. Building it
+    # from source needs a newer rustc than rust-toolchain.toml pins.
+    - name: Install cargo-binstall
+      uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
+      with:
+        tool: cargo-binstall
 
     - name: Setup Taskfile
       uses: ./.github/actions/setup-task
-      with:
-        version: latest
-        cache-enabled: true
 
-    - name: Install C/C++ toolchain
+    - name: Configure LLVM apt repository
       if: runner.os == 'Linux'
       shell: bash
       run: |
+        . /etc/os-release
+        codename="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
+        if [[ -z "${codename}" ]]; then
+          echo "::error::Unable to determine the Linux distribution codename"
+          exit 1
+        fi
+
+        curl -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key \
+          | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+        echo "deb https://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-19 main" \
+          | sudo tee /etc/apt/sources.list.d/apt.llvm.org.list > /dev/null
         sudo apt-get update
-        curl -L https://apt.llvm.org/llvm.sh -o /tmp/llvm.sh
-        chmod +x /tmp/llvm.sh
-        sudo /tmp/llvm.sh 19
-        sudo apt-get install -y \
+
+    - name: Install cached C/C++ toolchain
+      if: runner.os == 'Linux'
+      uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
+      with:
+        packages: >-
+          clang-19
+          lldb-19
+          lld-19
+          clangd-19
+          pkg-config
+          make
+          gcc-aarch64-linux-gnu
+          g++-aarch64-linux-gnu
+          gcc-x86-64-linux-gnu
+          g++-x86-64-linux-gnu
+        version: llvm19-v1
+        execute_install_scripts: "true"
+
+    - name: Verify C/C++ toolchain
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        for tool in \
+          clang-19 \
+          lldb-19 \
+          ld.lld-19 \
+          clangd-19 \
           pkg-config \
           make \
-          gcc-aarch64-linux-gnu \
-          g++-aarch64-linux-gnu \
-          gcc-x86-64-linux-gnu \
-          g++-x86-64-linux-gnu
+          aarch64-linux-gnu-gcc \
+          aarch64-linux-gnu-g++ \
+          x86_64-linux-gnu-gcc \
+          x86_64-linux-gnu-g++
+        do
+          command -v "${tool}"
+          "${tool}" --version | sed -n '1p'
+        done
