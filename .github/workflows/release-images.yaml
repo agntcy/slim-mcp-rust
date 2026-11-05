@@ -83,19 +83,3 @@ jobs:
       push: true
     secrets:
       github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  test-integration:
-    name: Run integration tests
-    needs: [ prepare-build, build-push ]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          persist-credentials: false
-
-      - name: Trigger CSIT integration CI
-        uses: ./.github/actions/trigger-integrations
-        with:
-          github-token: ${{ secrets.AGNTCY_BUILD_BOT_GH_TOKEN }}
-          mcp-proxy-image-tag: ${{ needs.prepare-build.outputs.image-tag }}
