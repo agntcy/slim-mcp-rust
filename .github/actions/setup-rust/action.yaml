@@ -57,6 +57,13 @@ runs:
         cache-bin: false # cache-bin has a bug at the swatinem cache level, if it's enabled, it will cause the bin cache to be cleared
         cache-directories: ${{ inputs.cache-directories }}
 
+    # Prebuilt, so the tasks' `cargo binstall` never compiles it. Building it
+    # from source needs a newer rustc than rust-toolchain.toml pins.
+    - name: Install cargo-binstall
+      uses: taiki-e/install-action@f7e5d7c961414b23f5b25b2da9294395d08513ad # v2.87.26
+      with:
+        tool: cargo-binstall
+
     - name: Setup Taskfile
       uses: ./.github/actions/setup-task
 

@@ -192,7 +192,9 @@ tasks:
     status:
       - cargo binstall --help >/dev/null 2>&1
     cmds:
-      - cargo install cargo-binstall --locked
+      # Outside the repo, so rust-toolchain.toml's pin does not apply:
+      # cargo-binstall needs a newer rustc than this repo pins.
+      - cd "$HOME" && cargo install cargo-binstall --locked
 
   toolchain:clean:
     desc: "Clean the project"
