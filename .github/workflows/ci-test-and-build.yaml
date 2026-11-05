@@ -21,3 +21,21 @@ jobs:
     uses: ./.github/workflows/reusable-rust-build-and-test.yaml
     with:
       working-directory: .
+
+  # Each merge to main builds and pushes the `main` image the same way a
+  # release tag does. A broken Dockerfile or registry grant then fails on the
+  # merge that caused it, not at the next release. Pull requests skip it,
+  # since the build takes about 15 minutes.
+  docker-build:
+    name: Build mcp-proxy image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/reusable-docker-build-push.yaml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      bake-targets: mcp-proxy
+      image-tag: main
+      push: true
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
