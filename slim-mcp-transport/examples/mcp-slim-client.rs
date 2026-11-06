@@ -12,9 +12,9 @@
 //!     --server-name org/mcp/proxy \
 //!     --shared-secret secretsecretsecretsecretsecretsecret
 
-use std::sync::Arc;
-
-use agntcy_slim_mcp_transport::{IdentityConfig, SlimClientConfig, SlimClientWorker};
+use agntcy_slim_mcp_transport::{
+    IdentityConfig, ProtoName, SlimConnection, insecure_client_config,
+};
 use clap::Parser;
 use rmcp::ClientLifecycleMode;
 use rmcp::ClientServiceExt;
@@ -22,10 +22,6 @@ use rmcp::model::{
     CallToolRequestParams, ClientConfig as RmcpClientConfig, GetPromptRequestParams,
     ProtocolVersion, ReadResourceRequestParams, SubscriptionFilter,
 };
-use slim_config::client::ClientConfig;
-use slim_config::component::id::ID;
-use slim_datapath::api::ProtoName;
-use slim_service::ServiceConfiguration;
 use tracing::{error, info};
 
 #[derive(Parser, Debug)]
@@ -101,44 +97,20 @@ async fn main() {
         return;
     };
 
-    // Build a Service that connects to the external SLIM server.
-    let mut client_config = ClientConfig::with_endpoint(&args.slim_endpoint);
-    client_config.tls_setting.insecure = true;
-    let svc_config = ServiceConfiguration::new().with_dataplane_client(vec![client_config]);
-    let svc_id = ID::new_with_str("slim/0").unwrap();
-    let service = svc_config
-        .build_server(svc_id)
-        .expect("failed to build service");
-
-    // Create and subscribe the app — the caller's responsibility before handing
-    // it to the transport.
-    let (auth_provider, auth_verifier) = identity
-        .into_auth_pair()
-        .await
-        .expect("failed to build auth pair");
-    let (app, _app_rx) = service
-        .create_app(&local_name, auth_provider, auth_verifier)
-        .expect("failed to create app");
-    service.run().await.expect("failed to start service");
-    let conn_id = service
-        .get_connection_id(&service.config().dataplane_clients()[0].endpoint)
-        .expect("no connection to SLIM server");
-    app.subscribe(&local_name, Some(conn_id))
-        .await
-        .expect("failed to subscribe");
-    app.set_route(&server_name, conn_id)
-        .await
-        .expect("failed to set route");
-    let app = Arc::new(app);
+    let connection = SlimConnection::connect(
+        insecure_client_config(&args.slim_endpoint),
+        local_name,
+        identity,
+    )
+    .await
+    .expect("failed to connect to SLIM");
 
     info!(name = %server_name, "connecting to MCP server via SLIM...");
 
-    let transport = SlimClientWorker::new(SlimClientConfig {
-        app,
-        destination: server_name,
-        session_config: None,
-    })
-    .into_transport();
+    let transport = connection
+        .client_transport(server_name)
+        .await
+        .expect("failed to open the client transport");
 
     let client_info = RmcpClientConfig::default();
     //).with_protocol_version(ProtocolVersion::V_2026_07_28);
