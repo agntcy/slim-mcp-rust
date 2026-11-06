@@ -5,12 +5,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use agntcy_slim_mcp_transport::{
-    IdentityConfig, SlimClientConfig, SlimClientWorker, SlimConnection, SlimServerListener,
-    insecure_client_config,
+    IdentityConfig, PeerIdentity, SlimClientConfig, SlimClientWorker, SlimConnection,
+    SlimServerListener, default_session_config, insecure_client_config,
 };
 use rmcp::handler::server::{router::tool::ToolRouter, wrapper::Parameters};
 use rmcp::model::{CallToolRequestParams, ServerCapabilities, ServerConfig as McpServerConfig};
-use rmcp::service::{QuitReason, RoleClient, RoleServer, RunningService};
+use rmcp::service::{QuitReason, RequestContext, RoleClient, RoleServer, RunningService};
 use rmcp::{ServerHandler, serve_client, serve_server, tool, tool_handler, tool_router};
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -157,10 +157,10 @@ async fn start_node() -> (Service, String) {
     (node, format!("http://127.0.0.1:{port}"))
 }
 
-/// Connects the app `test/ns/<name>` to the node at `endpoint`.
+/// Connects the app `test/ns/<name>`, with the shared-secret identity `name`,
+/// to the node at `endpoint`.
 async fn connect(endpoint: &str, name: &str) -> SlimConnection {
-    let identity =
-        IdentityConfig::shared_secret("test", "test-shared-secret-value-0123456789abcdef");
+    let identity = IdentityConfig::shared_secret(name, "test-shared-secret-value-0123456789abcdef");
     SlimConnection::connect(
         insecure_client_config(endpoint),
         ProtoName::from_strings(["test", "ns", name]),
@@ -278,7 +278,8 @@ struct EchoParams {
     delay_ms: u64,
 }
 
-/// An MCP server with one tool, `echo`, that returns its text.
+/// An MCP server with two tools: `echo` returns its text, and `whoami` the
+/// caller's verified subject.
 #[derive(Clone)]
 struct EchoServer {
     tool_router: ToolRouter<Self>,
@@ -299,6 +300,14 @@ impl EchoServer {
     ) -> String {
         tokio::time::sleep(Duration::from_millis(delay_ms)).await;
         text
+    }
+
+    #[tool(description = "Returns the caller's verified subject, or \"unknown\"")]
+    async fn whoami(&self, context: RequestContext<RoleServer>) -> String {
+        context
+            .extensions
+            .get::<PeerIdentity>()
+            .map_or_else(|| "unknown".to_string(), |peer| peer.subject().to_string())
     }
 }
 
@@ -382,4 +391,76 @@ async fn one_server_serves_several_clients_at_once() {
         .await
         .expect("clients did not finish within 30s");
     server_task.abort();
+}
+
+/// What the `whoami` tool returns when a client opens its session with
+/// `session_config`.
+async fn caller_seen_by_a_tool(session_config: SessionConfig) -> String {
+    let (_node, endpoint) = start_node().await;
+    let server = connect(&endpoint, "server").await;
+    let server_name = server.name().clone();
+    let mut listener = server.into_listener();
+    let server_task = tokio::spawn(async move {
+        let transport = listener
+            .accept()
+            .await
+            .expect("accept returned None")
+            .expect("accept returned error");
+        serve_server(EchoServer::new(), transport)
+            .await
+            .expect("serve_server failed")
+    });
+
+    let transport = connect(&endpoint, "client")
+        .await
+        .client_transport_with_config(server_name, session_config)
+        .await
+        .expect("client transport failed");
+    let client = serve_client((), transport)
+        .await
+        .expect("serve_client failed");
+    let result = client
+        .peer()
+        .call_tool(CallToolRequestParams::new("whoami"))
+        .await
+        .expect("call_tool failed");
+
+    client.cancel().await.expect("client task panicked");
+    server_task
+        .await
+        .expect("server task panicked")
+        .cancel()
+        .await
+        .expect("server task panicked");
+    result
+        .content
+        .first()
+        .and_then(|content| content.as_text())
+        .map(|content| content.text.clone())
+        .expect("whoami returned no text")
+}
+
+#[tokio::test]
+async fn tools_see_the_callers_verified_identity() {
+    let subject = tokio::time::timeout(
+        Duration::from_secs(30),
+        caller_seen_by_a_tool(default_session_config()),
+    )
+    .await
+    .expect("whoami did not answer within 30s");
+    // A shared-secret identity's subject is its id plus a per-instance suffix.
+    assert!(
+        subject.starts_with("client_"),
+        "unexpected subject {subject}"
+    );
+}
+
+#[tokio::test]
+async fn tools_see_no_identity_without_mls() {
+    let mut config = default_session_config();
+    config.mls_settings = None;
+    let subject = tokio::time::timeout(Duration::from_secs(30), caller_seen_by_a_tool(config))
+        .await
+        .expect("whoami did not answer within 30s");
+    assert_eq!(subject, "unknown");
 }
