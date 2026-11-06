@@ -52,3 +52,9 @@ name = "agntcy-slim-mcp-proxy"
 publish = true
 release = true
 changelog_update = true
+
+[[package]]
+name = "agntcy-slim-mcp-transport"
+publish = true
+release = true
+changelog_update = true
