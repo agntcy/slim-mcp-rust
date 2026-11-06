@@ -23,5 +23,5 @@ pub use server::{SlimServerListener, SlimServerTransport, SlimServerWorker};
 // on matching versions of the SLIM crates.
 pub use slim_config::client::ClientConfig;
 pub use slim_datapath::api::{ProtoName, ProtoSessionType};
-pub use slim_session::SessionConfig;
 pub use slim_session::session_config::MlsSettings;
+pub use slim_session::{PeerIdentity, SessionConfig};
