@@ -63,16 +63,27 @@ impl SlimServerListener {
     /// Each returned transport holds an `Arc` to the underlying `App` so the
     /// message-processing loop stays alive for the full session lifetime.
     pub async fn accept(&mut self) -> Option<Result<SlimServerTransport, SlimTransportError>> {
+        let ctx = match self.next_session().await? {
+            Ok(ctx) => ctx,
+            Err(e) => return Some(Err(e)),
+        };
+        let worker = SlimServerWorker {
+            ctx,
+            _app: self.app.clone(),
+            _service: self.service.clone(),
+        };
+        Some(Ok(WorkerTransport::spawn(worker)))
+    }
+
+    /// The next incoming session, before a worker takes it over.
+    pub(crate) async fn next_session(
+        &mut self,
+    ) -> Option<Result<SessionContext, SlimTransportError>> {
         loop {
             match self.slim_rx.recv().await? {
                 Ok(Notification::NewSession(ctx)) => {
                     debug!("incoming SLIM session accepted");
-                    let worker = SlimServerWorker {
-                        ctx,
-                        _app: self.app.clone(),
-                        _service: self.service.clone(),
-                    };
-                    return Some(Ok(WorkerTransport::spawn(worker)));
+                    return Some(Ok(ctx));
                 }
                 Ok(Notification::NewMessage(_)) => continue,
                 Err(e) => {
