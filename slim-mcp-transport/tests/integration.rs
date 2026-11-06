@@ -8,14 +8,19 @@ use agntcy_slim_mcp_transport::{
     IdentityConfig, SlimClientConfig, SlimClientWorker, SlimConnection, SlimServerListener,
     insecure_client_config,
 };
+use rmcp::handler::server::{router::tool::ToolRouter, wrapper::Parameters};
+use rmcp::model::{CallToolRequestParams, ServerCapabilities, ServerConfig as McpServerConfig};
 use rmcp::service::{QuitReason, RoleClient, RoleServer, RunningService};
-use rmcp::{ServerHandler, serve_client, serve_server};
+use rmcp::{ServerHandler, serve_client, serve_server, tool, tool_handler, tool_router};
+use schemars::JsonSchema;
+use serde::Deserialize;
 use slim_config::component::id::ID;
 use slim_config::server::ServerConfig;
 use slim_config::tls::server::TlsServerConfig;
 use slim_datapath::api::{ProtoName, ProtoSessionType};
 use slim_service::Service;
 use slim_session::SessionConfig;
+use tokio::task::JoinSet;
 
 /// A minimal MCP server that returns no tools, resources, or prompts.
 #[derive(Clone)]
@@ -136,41 +141,44 @@ struct McpOverSlim {
     server: RunningService<RoleServer, MinimalServer>,
 }
 
+/// Starts an in-process SLIM node on a free port and returns it with its
+/// endpoint. Dropping the node stops it.
+async fn start_node() -> (Service, String) {
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .and_then(|l| l.local_addr())
+        .expect("no free port")
+        .port();
+    let node = Service::new(ID::new_with_str("slim/node").unwrap());
+    let node_config = ServerConfig::with_endpoint(&format!("127.0.0.1:{port}"))
+        .with_tls_settings(TlsServerConfig::insecure());
+    node.run_server(&node_config)
+        .await
+        .expect("SLIM node failed to start");
+    (node, format!("http://127.0.0.1:{port}"))
+}
+
+/// Connects the app `test/ns/<name>` to the node at `endpoint`.
+async fn connect(endpoint: &str, name: &str) -> SlimConnection {
+    let identity =
+        IdentityConfig::shared_secret("test", "test-shared-secret-value-0123456789abcdef");
+    SlimConnection::connect(
+        insecure_client_config(endpoint),
+        ProtoName::from_strings(["test", "ns", name]),
+        identity,
+    )
+    .await
+    .unwrap_or_else(|e| panic!("{name} failed to connect: {e}"))
+}
+
 impl McpOverSlim {
     async fn start() -> Self {
-        // Pick a free port for the node.
-        let port = std::net::TcpListener::bind("127.0.0.1:0")
-            .and_then(|l| l.local_addr())
-            .expect("no free port")
-            .port();
-        let node = Service::new(ID::new_with_str("slim/node").unwrap());
-        let node_config = ServerConfig::with_endpoint(&format!("127.0.0.1:{port}"))
-            .with_tls_settings(TlsServerConfig::insecure());
-        node.run_server(&node_config)
-            .await
-            .expect("SLIM node failed to start");
-        let endpoint = format!("http://127.0.0.1:{port}");
+        let (node, endpoint) = start_node().await;
 
-        let identity =
-            IdentityConfig::shared_secret("test", "test-shared-secret-value-0123456789abcdef");
-
-        let server = SlimConnection::connect(
-            insecure_client_config(&endpoint),
-            ProtoName::from_strings(["test", "ns", "server"]),
-            identity.clone(),
-        )
-        .await
-        .expect("server failed to connect");
+        let server = connect(&endpoint, "server").await;
         let server_name = server.name().clone();
         let mut listener = server.into_listener();
 
-        let client = SlimConnection::connect(
-            insecure_client_config(&endpoint),
-            ProtoName::from_strings(["test", "ns", "client"]),
-            identity,
-        )
-        .await
-        .expect("client failed to connect");
+        let client = connect(&endpoint, "client").await;
         let client_transport = client
             .client_transport(server_name)
             .await
@@ -261,4 +269,117 @@ async fn cancelling_the_server_ends_the_client_transport() {
         matches!(reason, QuitReason::Closed),
         "unexpected quit reason {reason:?}"
     );
+}
+
+#[derive(Deserialize, JsonSchema)]
+struct EchoParams {
+    text: String,
+    /// How long to wait before answering, so that calls finish out of order.
+    delay_ms: u64,
+}
+
+/// An MCP server with one tool, `echo`, that returns its text.
+#[derive(Clone)]
+struct EchoServer {
+    tool_router: ToolRouter<Self>,
+}
+
+#[tool_router]
+impl EchoServer {
+    fn new() -> Self {
+        Self {
+            tool_router: Self::tool_router(),
+        }
+    }
+
+    #[tool(description = "Returns its text after delay_ms")]
+    async fn echo(
+        &self,
+        Parameters(EchoParams { text, delay_ms }): Parameters<EchoParams>,
+    ) -> String {
+        tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+        text
+    }
+}
+
+#[tool_handler(router = self.tool_router)]
+impl ServerHandler for EchoServer {
+    fn get_info(&self) -> McpServerConfig {
+        McpServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+    }
+}
+
+/// Several clients call one server at the same time, each on its own session,
+/// and every client gets back only its own answers.
+#[tokio::test]
+async fn one_server_serves_several_clients_at_once() {
+    const CLIENTS: usize = 4;
+    const CALLS: usize = 10;
+
+    let (_node, endpoint) = start_node().await;
+    let server = connect(&endpoint, "server").await;
+    let server_name = server.name().clone();
+    let mut listener = server.into_listener();
+
+    // Serve every session the listener accepts, each on its own task.
+    let server_task = tokio::spawn(async move {
+        let mut sessions = JoinSet::new();
+        while let Some(transport) = listener.accept().await {
+            let transport = transport.expect("accept returned error");
+            sessions.spawn(async move {
+                serve_server(EchoServer::new(), transport)
+                    .await
+                    .expect("serve_server failed")
+                    .waiting()
+                    .await
+            });
+        }
+    });
+
+    let mut clients = JoinSet::new();
+    for c in 0..CLIENTS {
+        let endpoint = endpoint.clone();
+        let server_name = server_name.clone();
+        clients.spawn(async move {
+            let transport = connect(&endpoint, &format!("client-{c}"))
+                .await
+                .client_transport(server_name)
+                .await
+                .expect("client transport failed");
+            let client = serve_client((), transport)
+                .await
+                .expect("serve_client failed");
+
+            let mut calls = JoinSet::new();
+            for i in 0..CALLS {
+                let peer = client.peer().clone();
+                let text = format!("client {c} call {i}");
+                // Later calls answer first.
+                let delay_ms = ((CALLS - i) * 5) as u64;
+                calls.spawn(async move {
+                    let args = serde_json::json!({ "text": text, "delay_ms": delay_ms });
+                    let result = peer
+                        .call_tool(
+                            CallToolRequestParams::new("echo")
+                                .with_arguments(args.as_object().unwrap().clone()),
+                        )
+                        .await
+                        .expect("call_tool failed");
+                    let answer = result
+                        .content
+                        .first()
+                        .and_then(|content| content.as_text())
+                        .map(|content| content.text.clone());
+                    assert_eq!(answer.as_deref(), Some(text.as_str()));
+                });
+            }
+            calls.join_all().await;
+            client.cancel().await.expect("client task panicked");
+        });
+    }
+
+    tokio::time::timeout(Duration::from_secs(30), clients.join_all())
+        .await
+        .expect("clients did not finish within 30s");
+    server_task.abort();
 }
