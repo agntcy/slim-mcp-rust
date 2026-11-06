@@ -10,6 +10,7 @@ use rmcp::transport::worker::{
 use slim_datapath::api::{ProtoName, ProtoSessionType};
 use slim_service::Service;
 use slim_session::SessionConfig;
+use slim_session::session_config::MlsSettings;
 
 use crate::SlimApp;
 use crate::error::SlimTransportError;
@@ -18,11 +19,32 @@ use tracing::{debug, warn};
 /// A `Transport<RoleClient>` backed by a single outgoing SLIM session.
 pub type SlimClientTransport = WorkerTransport<SlimClientWorker>;
 
+/// The session a client opens unless it passes its own configuration: a
+/// point-to-point session, initiated by the client, with MLS.
+///
+/// MLS encrypts the session end to end, and gives the server the client's
+/// verified identity. To talk to a peer that doesn't use MLS, set
+/// `mls_settings` to `None`.
+pub fn default_session_config() -> SessionConfig {
+    SessionConfig {
+        session_type: ProtoSessionType::PointToPoint,
+        initiator: true,
+        max_retries: Some(5),
+        interval: Some(std::time::Duration::from_secs(1)),
+        mls_settings: Some(MlsSettings {
+            // Check every message after decryption, as the SLIM bindings do.
+            header_integrity_validation_percent: 100,
+            max_seen_control_message_ids_size: None,
+        }),
+        metadata: Default::default(),
+    }
+}
+
 /// Configuration for [`SlimClientWorker`].
 pub struct SlimClientConfig {
     pub app: Arc<SlimApp>,
     pub destination: ProtoName,
-    /// Session configuration; defaults to point-to-point initiated by this side.
+    /// Session configuration; defaults to [`default_session_config`].
     pub session_config: Option<SessionConfig>,
 }
 
@@ -80,14 +102,7 @@ impl Worker for SlimClientWorker {
             session_config,
         } = self.config;
 
-        let cfg = session_config.unwrap_or(SessionConfig {
-            session_type: ProtoSessionType::PointToPoint,
-            initiator: true,
-            max_retries: Some(5),
-            interval: Some(std::time::Duration::from_secs(1)),
-            mls_settings: None,
-            metadata: Default::default(),
-        });
+        let cfg = session_config.unwrap_or_else(default_session_config);
 
         debug!(%destination, "creating SLIM session");
         let (session_ctx, completion) =
