@@ -8,6 +8,8 @@ use std::time::Duration;
 use tracing::{error, info};
 
 mod proxy;
+#[cfg(test)]
+mod tests;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
