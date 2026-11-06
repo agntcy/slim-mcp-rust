@@ -4,10 +4,13 @@
 use std::sync::Arc;
 
 use agntcy_slim_mcp_transport::{
-    IdentityConfig, SlimClientConfig, SlimClientWorker, SlimServerListener,
+    IdentityConfig, SlimClientConfig, SlimClientWorker, SlimConnection, SlimServerListener,
+    insecure_client_config,
 };
 use rmcp::{ServerHandler, serve_client, serve_server};
 use slim_config::component::id::ID;
+use slim_config::server::ServerConfig;
+use slim_config::tls::server::TlsServerConfig;
 use slim_datapath::api::{ProtoName, ProtoSessionType};
 use slim_service::Service;
 use slim_session::SessionConfig;
@@ -113,6 +116,91 @@ async fn mcp_list_tools_roundtrip_over_slim() {
         result.tools.is_empty(),
         "expected no tools from MinimalServer"
     );
+
+    client.cancellation_token().cancel();
+    server_task
+        .await
+        .expect("server task panicked")
+        .cancellation_token()
+        .cancel();
+}
+
+/// Both sides use `SlimConnection` to reach an in-process SLIM node over TCP,
+/// the way applications reach a real one.
+#[tokio::test]
+async fn mcp_list_tools_through_a_slim_node() {
+    // Pick a free port for the node.
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .and_then(|l| l.local_addr())
+        .expect("no free port")
+        .port();
+    let node = Service::new(ID::new_with_str("slim/node").unwrap());
+    let node_config = ServerConfig::with_endpoint(&format!("127.0.0.1:{port}"))
+        .with_tls_settings(TlsServerConfig::insecure());
+    node.run_server(&node_config)
+        .await
+        .expect("SLIM node failed to start");
+    let endpoint = format!("http://127.0.0.1:{port}");
+
+    let identity =
+        IdentityConfig::shared_secret("test", "test-shared-secret-value-0123456789abcdef");
+
+    let server = SlimConnection::connect(
+        insecure_client_config(&endpoint),
+        ProtoName::from_strings(["test", "ns", "server"]),
+        identity.clone(),
+    )
+    .await
+    .expect("server failed to connect");
+    let server_name = server.name().clone();
+    let mut listener = server.into_listener();
+
+    let client = SlimConnection::connect(
+        insecure_client_config(&endpoint),
+        ProtoName::from_strings(["test", "ns", "client"]),
+        identity,
+    )
+    .await
+    .expect("client failed to connect");
+    let client_transport = client
+        .client_transport(server_name)
+        .await
+        .expect("client transport failed");
+    // The transport keeps the SLIM service alive on its own.
+    drop(client);
+
+    let server_task = tokio::spawn(async move {
+        let transport = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            listener
+                .accept()
+                .await
+                .expect("accept returned None")
+                .expect("accept returned error")
+        })
+        .await
+        .expect("server accept timed out");
+
+        serve_server(MinimalServer, transport)
+            .await
+            .expect("serve_server failed")
+    });
+
+    let client = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        serve_client((), client_transport),
+    )
+    .await
+    .expect("serve_client timed out")
+    .expect("serve_client failed");
+
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        client.peer().list_tools(None),
+    )
+    .await
+    .expect("list_tools timed out")
+    .expect("list_tools failed");
+    assert!(result.tools.is_empty());
 
     client.cancellation_token().cancel();
     server_task

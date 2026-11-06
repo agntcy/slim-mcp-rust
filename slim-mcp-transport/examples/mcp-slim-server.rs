@@ -13,7 +13,9 @@
 
 use std::sync::Arc;
 
-use agntcy_slim_mcp_transport::{IdentityConfig, SlimServerListener};
+use agntcy_slim_mcp_transport::{
+    IdentityConfig, ProtoName, SlimConnection, insecure_client_config,
+};
 use clap::{Parser, ValueEnum};
 use rmcp::service::RoleServer;
 use rmcp::transport::{
@@ -37,10 +39,6 @@ use rmcp::{
 };
 use schemars::JsonSchema;
 use serde::Deserialize;
-use slim_config::client::ClientConfig;
-use slim_config::component::id::ID;
-use slim_datapath::api::ProtoName;
-use slim_service::ServiceConfiguration;
 use tracing::{error, info};
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
@@ -296,33 +294,17 @@ async fn run_slim(args: Args) {
         return;
     };
 
-    let mut client_config = ClientConfig::with_endpoint(&args.slim_endpoint);
-    client_config.tls_setting.insecure = true;
-    let svc_config = ServiceConfiguration::new().with_dataplane_client(vec![client_config]);
-    let svc_id = ID::new_with_str("slim/0").unwrap();
-    let service = svc_config
-        .build_server(svc_id)
-        .expect("failed to build service");
+    let connection = SlimConnection::connect(
+        insecure_client_config(&args.slim_endpoint),
+        local_name,
+        identity,
+    )
+    .await
+    .expect("failed to connect to SLIM");
 
-    let (auth_provider, auth_verifier) = identity
-        .into_auth_pair()
-        .await
-        .expect("failed to build auth pair");
-    let (app, app_rx) = service
-        .create_app(&local_name, auth_provider, auth_verifier)
-        .expect("failed to create app");
-    service.run().await.expect("failed to start service");
-    let conn_id = service
-        .get_connection_id(&service.config().dataplane_clients()[0].endpoint)
-        .expect("no connection to SLIM server");
-    app.subscribe(&local_name, Some(conn_id))
-        .await
-        .expect("failed to subscribe");
-    let app = Arc::new(app);
+    info!(name = %connection.name(), "MCP server listening for SLIM sessions");
 
-    info!(name = %local_name, "MCP server listening for SLIM sessions");
-
-    let mut listener = SlimServerListener::new(app, app_rx);
+    let mut listener = connection.into_listener();
     loop {
         match listener.accept().await {
             Some(Ok(transport)) => {

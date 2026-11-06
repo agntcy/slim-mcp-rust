@@ -7,6 +7,7 @@ use rmcp::service::RoleServer;
 use rmcp::transport::worker::{
     Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport,
 };
+use slim_service::Service;
 use slim_session::SessionError;
 use slim_session::context::SessionContext;
 use slim_session::notification::Notification;
@@ -16,25 +17,45 @@ use crate::SlimApp;
 use crate::error::SlimTransportError;
 use tracing::{debug, warn};
 
-/// A Transport<RoleServer> for one accepted incoming SLIM session.
+/// A `Transport<RoleServer>` for one accepted incoming SLIM session.
 pub type SlimServerTransport = WorkerTransport<SlimServerWorker>;
 
 /// Listens for incoming SLIM sessions and yields a [`SlimServerTransport`] per session.
 pub struct SlimServerListener {
     slim_rx: mpsc::Receiver<Result<Notification, SessionError>>,
     app: Arc<SlimApp>,
+    // Keeps the SLIM service, and so its connection, alive for the listener
+    // and its sessions.
+    service: Option<Arc<Service>>,
 }
 
 impl SlimServerListener {
     /// Create a listener from a pre-built, pre-subscribed SLIM app.
     ///
-    /// The caller is responsible for calling [`slim_service::Service::run`] and
-    /// subscribing the app to its name before passing it here.
+    /// The caller keeps the SLIM service running and subscribes the app to its
+    /// name before passing it here. [`crate::SlimConnection::into_listener`]
+    /// does both.
     pub fn new(
         app: Arc<SlimApp>,
         slim_rx: mpsc::Receiver<Result<Notification, SessionError>>,
     ) -> Self {
-        Self { slim_rx, app }
+        Self {
+            slim_rx,
+            app,
+            service: None,
+        }
+    }
+
+    pub(crate) fn with_service(
+        app: Arc<SlimApp>,
+        slim_rx: mpsc::Receiver<Result<Notification, SessionError>>,
+        service: Arc<Service>,
+    ) -> Self {
+        Self {
+            slim_rx,
+            app,
+            service: Some(service),
+        }
     }
 
     /// Accept the next incoming session. Returns `None` when the listener is closed.
@@ -49,6 +70,7 @@ impl SlimServerListener {
                     let worker = SlimServerWorker {
                         ctx,
                         _app: self.app.clone(),
+                        _service: self.service.clone(),
                     };
                     return Some(Ok(WorkerTransport::spawn(worker)));
                 }
@@ -67,6 +89,7 @@ pub struct SlimServerWorker {
     pub(crate) ctx: SessionContext,
     // Keeps the App's message-processing loop alive for the session lifetime.
     _app: Arc<SlimApp>,
+    _service: Option<Arc<Service>>,
 }
 
 impl Worker for SlimServerWorker {

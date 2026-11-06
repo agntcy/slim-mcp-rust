@@ -8,6 +8,7 @@ use rmcp::transport::worker::{
     Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport,
 };
 use slim_datapath::api::{ProtoName, ProtoSessionType};
+use slim_service::Service;
 use slim_session::SessionConfig;
 
 use crate::SlimApp;
@@ -28,11 +29,23 @@ pub struct SlimClientConfig {
 /// Worker driving a single client-side SLIM session as an MCP transport.
 pub struct SlimClientWorker {
     config: SlimClientConfig,
+    // Keeps the SLIM service, and so its connection, alive for the session.
+    service: Option<Arc<Service>>,
 }
 
 impl SlimClientWorker {
     pub fn new(config: SlimClientConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            service: None,
+        }
+    }
+
+    pub(crate) fn with_service(config: SlimClientConfig, service: Arc<Service>) -> Self {
+        Self {
+            config,
+            service: Some(service),
+        }
     }
 
     /// Convenience: spawn the transport immediately.
@@ -60,6 +73,7 @@ impl Worker for SlimClientWorker {
     }
 
     async fn run(self, mut ctx: WorkerContext<Self>) -> Result<(), WorkerQuitReason<Self::Error>> {
+        let _service = self.service;
         let SlimClientConfig {
             app,
             destination,
