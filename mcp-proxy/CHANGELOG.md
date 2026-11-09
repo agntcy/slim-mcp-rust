@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.3.1...slim-mcp-proxy-v0.3.2) - 2026-11-09
+
+### Fixed
+
+- *(mcp-proxy)* install a rustls crypto provider ([#87](https://github.com/agntcy/slim-mcp-rust/pull/87))
+- bump rmcp to 3.9 and build on Ubuntu 26.04 runners ([#89](https://github.com/agntcy/slim-mcp-rust/pull/89))
+
 ## [0.3.1](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.3.0...slim-mcp-proxy-v0.3.1) - 2026-11-05
 
 ### Fixed
