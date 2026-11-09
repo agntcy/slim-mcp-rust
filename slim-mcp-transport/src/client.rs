@@ -132,6 +132,13 @@ impl Worker for SlimClientWorker {
         loop {
             tokio::select! {
                 _ = ctx.cancellation_token.cancelled() => {
+                    // Closing the session ends the server's transport too.
+                    debug!(%dst, "cancellation received, closing SLIM session");
+                    if let Ok(completion) = session.close()
+                        && let Err(e) = completion.await
+                    {
+                        warn!(%dst, error = %e, "error draining SLIM session on close");
+                    }
                     return Err(WorkerQuitReason::Cancelled);
                 }
 
