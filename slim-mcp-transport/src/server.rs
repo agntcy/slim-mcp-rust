@@ -3,14 +3,16 @@
 
 use std::sync::Arc;
 
+use rmcp::model::{ClientJsonRpcMessage, GetExtensions};
 use rmcp::service::RoleServer;
 use rmcp::transport::worker::{
     Worker, WorkerConfig, WorkerContext, WorkerQuitReason, WorkerTransport,
 };
+use slim_datapath::api::ProtoMessage;
 use slim_service::Service;
-use slim_session::SessionError;
 use slim_session::context::SessionContext;
 use slim_session::notification::Notification;
+use slim_session::{PEER_SUBJECT_KEY, PeerIdentity, SessionError};
 use tokio::sync::mpsc;
 
 use crate::SlimApp;
@@ -95,7 +97,41 @@ impl SlimServerListener {
     }
 }
 
+/// The verified identity of a message's sender. SLIM sets the sender's
+/// subject on a message only after MLS decryption, so this is `None` without
+/// MLS. The session's identity, which also has the issuer, is used when it is
+/// the same peer.
+fn sender_identity(
+    msg: &ProtoMessage,
+    session_peer: Option<&PeerIdentity>,
+) -> Option<PeerIdentity> {
+    let subject = msg.get_metadata(PEER_SUBJECT_KEY)?;
+    match session_peer {
+        Some(peer) if peer.subject() == subject.as_str() => Some(peer.clone()),
+        _ => Some(PeerIdentity::new(subject.clone(), None)),
+    }
+}
+
+/// Attaches `peer` to a request or notification, where handlers find it in
+/// their context's `extensions`.
+fn insert_extension(msg: &mut ClientJsonRpcMessage, peer: PeerIdentity) {
+    match msg {
+        ClientJsonRpcMessage::Request(req) => {
+            req.request.extensions_mut().insert(peer);
+        }
+        ClientJsonRpcMessage::Notification(not) => {
+            not.notification.extensions_mut().insert(peer);
+        }
+        _ => {}
+    }
+}
+
 /// Worker driving a single server-side SLIM session as an MCP transport.
+///
+/// Each request and notification it hands to the MCP server carries the
+/// sender's verified [`PeerIdentity`] in its extensions, when the session uses
+/// MLS. A tool reads it with `context.extensions.get::<PeerIdentity>()` on
+/// its `RequestContext` to authorize the call.
 pub struct SlimServerWorker {
     pub(crate) ctx: SessionContext,
     // Keeps the App's message-processing loop alive for the session lifetime.
@@ -126,6 +162,7 @@ impl Worker for SlimServerWorker {
             WorkerQuitReason::fatal(SlimTransportError::NoSession, "session upgrade")
         })?;
         let dst = session.dst().clone();
+        let session_peer = session.peer_identity();
         debug!(%dst, "SLIM server session started");
 
         let (err_tx, mut err_rx) =
@@ -166,7 +203,7 @@ impl Worker for SlimServerWorker {
                                         return;
                                     }
                                 };
-                                let json_msg = match serde_json::from_slice(&payload.blob) {
+                                let mut json_msg: ClientJsonRpcMessage = match serde_json::from_slice(&payload.blob) {
                                     Ok(m) => m,
                                     Err(e) => {
                                         let _ = err_tx_rx.send(WorkerQuitReason::fatal(
@@ -176,6 +213,9 @@ impl Worker for SlimServerWorker {
                                         return;
                                     }
                                 };
+                                if let Some(peer) = sender_identity(&msg, session_peer.as_ref()) {
+                                    insert_extension(&mut json_msg, peer);
+                                }
                                 if to_handler_tx.send(json_msg).await.is_err() {
                                     let _ = err_tx_rx.send(WorkerQuitReason::HandlerTerminated).await;
                                     return;
