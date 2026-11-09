@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
 description = "SLIM transport for the MCP Rust SDK (rmcp)"
+repository = "https://github.com/agntcy/slim-mcp-rust"
+readme = "README.md"
+keywords = ["mcp", "slim", "rmcp", "agents", "mls"]
+categories = ["network-programming", "asynchronous"]
 
 [package.metadata.cargo-machete.renamed]
 agntcy-slim-auth = "slim_auth"
