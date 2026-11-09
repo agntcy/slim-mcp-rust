@@ -53,8 +53,11 @@ publish = true
 release = true
 changelog_update = true
 
+# crates.io only allows Trusted Publishing for crates that already exist, so an
+# owner publishes 0.1.0 by hand. Turn this on when release-rust.yaml moves to
+# Trusted Publishing.
 [[package]]
 name = "agntcy-slim-mcp-transport"
-publish = true
-release = true
+publish = false
+release = false
 changelog_update = true
