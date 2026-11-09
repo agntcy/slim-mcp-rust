@@ -14,9 +14,13 @@ jobs:
   release-crates:
     name: Release slim crates
     runs-on: ubuntu-latest
+    # Publishes with crates.io Trusted Publishing: crates.io trusts this
+    # workflow in the release environment, so no registry token is needed.
+    environment: release
     permissions:
       contents: write
       pull-requests: read
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,7 +41,6 @@ jobs:
           config: ./.release-plz.toml
         env:
           GITHUB_TOKEN: ${{ secrets.AGNTCY_BUILD_BOT_GH_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   # Create a PR with the new versions and changelog, preparing the next release.
   release-crates-pr:
@@ -68,4 +71,3 @@ jobs:
           config: ./.release-plz.toml
         env:
           GITHUB_TOKEN: ${{ secrets.AGNTCY_BUILD_BOT_GH_TOKEN }}
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
