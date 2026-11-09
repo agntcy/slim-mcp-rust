@@ -238,6 +238,10 @@ impl Proxy {
         identity_config: IdentityConfig,
         _drain_timeout: std::time::Duration,
     ) {
+        // The SLIM crates build reqwest with rustls but no crypto provider, so
+        // the HTTP client to the MCP server panics unless one is installed.
+        slim_config::tls::provider::initialize_crypto_provider();
+
         let (provider, verifier): (AuthProvider, AuthVerifier) = match identity_config {
             IdentityConfig::SharedSecret(secret) => {
                 info!("Using shared-secret authentication");
