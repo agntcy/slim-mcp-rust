@@ -4,7 +4,7 @@
 # Build container
 FROM --platform=${BUILDPLATFORM} rust:1.87-slim-bookworm AS rust
 
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 ARG TARGETARCH
 
@@ -19,7 +19,7 @@ case ${TARGETARCH} in
         RUSTARCH="aarch64-unknown-linux-gnu"
         ;;
     *)
-        echo "Unsupported platform: ${TARGETPLATFORM}"
+        echo "Unsupported architecture: ${TARGETARCH}"
         exit 1
         ;;
 esac
@@ -39,7 +39,7 @@ DEBIAN_FRONTEND=noninteractive \
         pkg-config \
         ${PACKAGES}
 
-curl -L -o /tmp/llvm.sh https://apt.llvm.org/llvm.sh
+curl -fsSL -o /tmp/llvm.sh https://apt.llvm.org/llvm.sh
 chmod +x /tmp/llvm.sh
 /tmp/llvm.sh 19
 
@@ -61,7 +61,7 @@ case ${TARGETARCH} in
         RUSTARCH=aarch64-unknown-linux-gnu
         ;;
     *)
-        echo "Unsupported platform: ${TARGETPLATFORM}"
+        echo "Unsupported architecture: ${TARGETARCH}"
         exit 1
         ;;
 esac
