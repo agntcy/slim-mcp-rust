@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/agntcy/slim-mcp-rust/compare/helm-mcp-proxy-v0.2.0...helm-mcp-proxy-v0.2.1) (2026-11-10)
+
+
+### Bug Fixes
+
+* **helm:** deploy mcp-proxy 0.3.2 ([#96](https://github.com/agntcy/slim-mcp-rust/issues/96)) ([bded0d4](https://github.com/agntcy/slim-mcp-rust/commit/bded0d44a58bad9ba14b06bc802e5c358441b48d))
+
 ## [0.2.0](https://github.com/agntcy/slim-mcp-rust/compare/helm-mcp-proxy-v0.1.4...helm-mcp-proxy-v0.2.0) (2026-11-05)
 
 
