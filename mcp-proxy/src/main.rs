@@ -30,7 +30,7 @@ pub struct Args {
     #[arg(short, long, value_name = "id", required = false)]
     id: Option<u64>,
 
-    /// MCP Server address (e.g http://localhost:8000/sse)
+    /// MCP server's Streamable HTTP endpoint (e.g. http://localhost:8000/mcp)
     #[arg(short, long, value_name = "address", required = true)]
     mcp_server: String,
 

@@ -1,5 +1,5 @@
 # SLIM-MCP proxy
-This proxy enables connecting existing MCP servers that use the SSE transport to the SLIM network. The proxy is capable of receiving messages from an application running on top of SLIM and forwarding them to the SSE server (and vice versa).
+This proxy connects existing MCP servers that serve Streamable HTTP to the SLIM network. It receives messages from applications on SLIM, forwards them to the server's HTTP endpoint, and sends the replies back.
 
 ## How to run the code
 You can use the commands provided in the Taskfile to run the client and server located in the example folder.
@@ -19,7 +19,7 @@ To run the MCP server example, use the following command:
 ```bash
 task mcp-proxy:test:run-mcp-server
 ```
-The MPC server will start listening on port 8000
+The MCP server will start listening on `http://localhost:8000/mcp`.
 ### Run the MCP Client
 To run the MCP client example, use the following command:
 ```bash
