@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.3.2...slim-mcp-proxy-v0.3.3) - 2026-11-10
+
+### Fixed
+
+- *(mcp-proxy)* stop the image build when a setup command fails ([#94](https://github.com/agntcy/slim-mcp-rust/pull/94))
+
 ## [0.3.2](https://github.com/agntcy/slim-mcp-rust/compare/slim-mcp-proxy-v0.3.1...slim-mcp-proxy-v0.3.2) - 2026-11-09
 
 ### Fixed
